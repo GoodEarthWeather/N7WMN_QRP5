@@ -48,8 +48,8 @@ __interrupt void Port_4(void)
         buttonPressed = BTN_PRESSED_TUNER_ENCODER_SWITCH;
         break;
       case  P4IV_P4IFG7:
-          // P4.7 = menu encoder A
-          buttonPressed = BTN_PRESSED_MENU_ENCODER;
+          // P4.7 = LED encoder A
+          buttonPressed = BTN_PRESSED_LED_ENCODER;
           break;
 
       default: break;
@@ -63,12 +63,12 @@ __interrupt void Port_5(void)
     switch(__even_in_range(P5IV,P5IV_P5IFG7))
     {
     case P5IV_P5IFG0:
-        // P5.0 = LED encoder switch
-        buttonPressed = BTN_PRESSED_LED_ENCODER_SWITCH;
+        // P5.0 = MENU encoder switch
+        buttonPressed = BTN_PRESSED_MENU_ENCODER_SWITCH;
         break;
       case  P5IV_P5IFG1:
-          // P5.1 = LED Encoder A
-          buttonPressed = BTN_PRESSED_LED_ENCODER;
+          // P5.1 = Menu Encoder A
+          buttonPressed = BTN_PRESSED_MENU_ENCODER;
           break;
       default: break;
     }
@@ -81,8 +81,8 @@ __interrupt void Port_6(void)
     switch(__even_in_range(P6IV,P6IV_P6IFG7))
     {
     case P6IV_P6IFG1:
-        // P6.1 = menu encoder switch
-        buttonPressed = BTN_PRESSED_MENU_ENCODER_SWITCH;
+        // P6.1 = LED encoder switch
+        buttonPressed = BTN_PRESSED_LED_ENCODER_SWITCH;
         break;
       default: break;
     }

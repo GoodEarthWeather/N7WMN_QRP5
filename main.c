@@ -122,54 +122,33 @@ static void handle_menu_encoder(void)
 static void updateLEDShifter( uint8_t index)
 {
     uint8_t i;
-    //uint8_t data[4];
-    uint8_t data[3];
+    uint8_t data[4];
+    //uint8_t data[3];
     uint32_t selectedLED = 0;
     extern RadioState_t radioState;
 
     selectedLED = (1UL << index);  // convert number to bit
     selectedLED = ~selectedLED;  // invert all bits to match HW implementation of turning on LED
     // construct bytes to send
-    //data[3] = radioState.bandRelayCode;  // temporary work around until moving to main board
+    data[3] = 0;
     data[2] = (uint8_t)(selectedLED  & 0x000000FF);
     data[1] = (uint8_t)((selectedLED >> 8) & 0x000000FF);
     data[0] = (uint8_t)((selectedLED >> 16) & 0x000000FF);
 
     // Send last chip's byte first, first chip's byte last
-    for (i = 0; i < 3; i++)
-    {
-        while (!EUSCI_B_SPI_getInterruptStatus(EUSCI_B0_BASE, EUSCI_B_SPI_TRANSMIT_INTERRUPT));
-        EUSCI_B_SPI_transmitData(EUSCI_B0_BASE, data[i]);
-    }
-
-    // Wait for the last byte to fully clock out before latching
-    while (EUSCI_B_SPI_isBusy(EUSCI_B0_BASE));
-
-    // Latch all 24 bits to the outputs simultaneously
-    GPIO_setOutputHighOnPin(REG_CLK);
-    __delay_cycles(10);
-    GPIO_setOutputLowOnPin(REG_CLK);
-
-    /****************************************
-    // Now, repeat all the above, but set relay code to 0 to disengage the relay state
-    delay_ms(12);
-    //data[3] = 0;  // temporary work around until moving to main board
-    // Send last chip's byte first, first chip's byte last
     for (i = 0; i < 4; i++)
     {
-        while (!EUSCI_B_SPI_getInterruptStatus(EUSCI_B0_BASE, EUSCI_B_SPI_TRANSMIT_INTERRUPT));
-        EUSCI_B_SPI_transmitData(EUSCI_B0_BASE, data[i]);
+        while (!EUSCI_A_SPI_getInterruptStatus(EUSCI_A1_BASE, EUSCI_A_SPI_TRANSMIT_INTERRUPT));
+        EUSCI_A_SPI_transmitData(EUSCI_A1_BASE, data[i]);
     }
 
     // Wait for the last byte to fully clock out before latching
-    while (EUSCI_B_SPI_isBusy(EUSCI_B0_BASE));
+    while (EUSCI_A_SPI_isBusy(EUSCI_A1_BASE));
 
     // Latch all 24 bits to the outputs simultaneously
     GPIO_setOutputHighOnPin(REG_CLK);
     __delay_cycles(10);
     GPIO_setOutputLowOnPin(REG_CLK);
-    ***************************/
-
 }
 
 
