@@ -1,0 +1,37 @@
+# Code Composer Studio (CCS) specific files
+.settings/
+.metadata/
+.config/
+.launches/
+.target/
+fftw-wisdom-*
+
+# Build artifacts and temporary files
+Debug/
+Release/
+*.out
+*.hex
+*.map
+*.obj
+*.lib
+*.a
+*.d
+*.i
+*.lst
+*.pp
+*.sbr
+*.tds
+*.bak
+*.log
+*.err
+*.dep
+*.cmd
+*.mk
+*.pjt
+*.opt
+*.pref
+*.tps
+*.trc
+*.xml
+*.zip
+*.bin
