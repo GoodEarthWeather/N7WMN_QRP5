@@ -36,6 +36,7 @@ typedef struct
     uint8_t modeIndex;
     uint8_t filterIndex;
     uint8_t keyerIndex;
+    uint8_t ledIndex;
 } RadioState_t;
 
 extern RadioState_t radioState;

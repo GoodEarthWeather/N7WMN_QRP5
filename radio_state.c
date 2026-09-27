@@ -5,12 +5,13 @@
 #include "radio_state.h"
 #include "lcdLib.h"
 #include "menu_data.h"
-//#include "main.h"
+#include "init.h"
 
 
 //static void selectFilter(uint8_t);
 //static void selectSideband(uint8_t);
 //static void selectAudioState(uint8_t);
+static void updateRelayShifter(uint8_t);
 
 #define FREQ_FIELD 0x00
 #define BAND_FIELD 0x0D
@@ -79,32 +80,17 @@ void handleHW_band(const MenuItem_t *item, int16_t value)
 
     const char *suffix = NULL;
     const char * bandName[] = {"40M", "30M", "20M", "17M", "15M"};
-    //uint8_t index;
-    //(void)item; /* unused here, but available if the callback needs
-    //             * item->def.list.options[value] etc. */
+
     radioState.bandIndex = (uint8_t)value;
     radioState.bandRelayCode = relayCode[(uint8_t)value];
-    // get index of band selected
-    //index = (uint8_t)menuCurrentValue[menuSelectedIndex];
-    //LCD_WriteField(&fieldBand,bandName[index],suffix);
     LCD_WriteField(&fieldBand,bandName[(uint8_t)value],suffix);
+    // now update shift register to select new band
+    updateRelayShifter(radioState.bandRelayCode); // shift in relay code to change relay
+    // now, delay 12ms for relay settling
+    delay_ms(12);
+    updateRelayShifter(0); // zero out relay code; magnetic latch holding relay
 
     //selectAudioState(MUTE);
-    switch (value)
-    {
-    case BAND_40M :
-        break;
-    case BAND_30M :
-        break;
-    case BAND_20M :
-        break;
-    case BAND_17M :
-        break;
-    case BAND_15M :
-        break;
-    default :
-        break;
-    }
     /*
     // reset menu function
     ritState = DISABLED;
@@ -194,3 +180,40 @@ static void selectAudioState(uint8_t state)
         GPIO_setOutputLowOnPin(TR_MUTE); // set low for unmute pin
 }
 ***************/
+// This routine will update  the latching relays for the filters
+// Sends '4' bytes out to a chain of cascaded 74HCT595s and latches once.
+// data[3] = byte for filter latching relays - first chip
+// data[2] = byte for the second chip in the chain (closest to MCU, SER pin)
+// data[1] = byte for the third chip
+// data[0] = byte for the fourth chip
+// (byte order is reversed internally since the chain shifts "backwards")
+static void updateRelayShifter(uint8_t relayCode)
+{
+    uint8_t i;
+    uint8_t data[4];
+    uint32_t selectedLED = 0;
+    extern RadioState_t radioState;
+
+    selectedLED = (1UL << radioState.ledIndex);  // convert number to bit
+    selectedLED = ~selectedLED;  // invert all bits to match HW implementation of turning on LED
+    // construct bytes to send
+    data[3] = relayCode;
+    data[2] = (uint8_t)(selectedLED  & 0x000000FF);
+    data[1] = (uint8_t)((selectedLED >> 8) & 0x000000FF);
+    data[0] = (uint8_t)((selectedLED >> 16) & 0x000000FF);
+    // Send last chip's byte first, first chip's byte last
+    for (i = 0; i < 4; i++)
+    {
+        while (!EUSCI_A_SPI_getInterruptStatus(EUSCI_A1_BASE, EUSCI_A_SPI_TRANSMIT_INTERRUPT));
+        EUSCI_A_SPI_transmitData(EUSCI_A1_BASE, data[i]);
+    }
+    // Wait for the last byte to fully clock out before latching
+    while (EUSCI_A_SPI_isBusy(EUSCI_A1_BASE));
+
+    // Latch all 24 bits to the outputs simultaneously
+    GPIO_setOutputHighOnPin(REG_CLK);
+    __delay_cycles(10);
+    GPIO_setOutputLowOnPin(REG_CLK);
+
+}
+

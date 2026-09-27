@@ -8,6 +8,7 @@
 #include "radio_state.h"
 #include "init.h"
 #include "lcdLib.h"
+#include "si5351.h"
 
 static void handle_led_encoder(void);
 static void handle_menu_encoder(void);
@@ -20,6 +21,8 @@ int main(void) {
     initGPIO();
     initClocks();
     lcdInit();
+    initialize_si5351();
+    si5351_disable_spread_spectrum();
     Menu_Init();
     updateLCD_status();
     init_spi_shift_register();
@@ -77,6 +80,7 @@ static void handle_led_encoder(void)
     // menuSelectedIndex now contains the index to the new selected menu
     // now get led index associated with the new menu index
     led_index = Menu_GetSelectedLedIndex();
+    radioState.ledIndex = led_index;
     // now send this to the LED shifter to update the LEDs
     updateLEDShifter(led_index);
     // now update LCD status field to show current menu option
@@ -130,7 +134,7 @@ static void updateLEDShifter( uint8_t index)
     selectedLED = (1UL << index);  // convert number to bit
     selectedLED = ~selectedLED;  // invert all bits to match HW implementation of turning on LED
     // construct bytes to send
-    data[3] = 0;
+    data[3] = 0; // don't change the LPF/HPF settings
     data[2] = (uint8_t)(selectedLED  & 0x000000FF);
     data[1] = (uint8_t)((selectedLED >> 8) & 0x000000FF);
     data[0] = (uint8_t)((selectedLED >> 16) & 0x000000FF);
