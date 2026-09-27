@@ -13,6 +13,7 @@
 static void handle_led_encoder(void);
 static void handle_menu_encoder(void);
 static void updateLEDShifter( uint8_t);
+static void handle_tuner_encoder(void);
 
 
 int main(void) {
@@ -42,6 +43,9 @@ int main(void) {
             case BTN_PRESSED_MENU_ENCODER_SWITCH :
                 buttonPressed = BTN_PRESSED_NONE;
                 break;
+            case BTN_PRESSED_TUNER_ENCODER_SWITCH :
+                buttonPressed = BTN_PRESSED_NONE;
+                break;
             case BTN_PRESSED_LED_ENCODER :
                 handle_led_encoder();
                 __disable_interrupt();
@@ -58,7 +62,14 @@ int main(void) {
                 }
                 __enable_interrupt();
                 break;
-
+            case BTN_PRESSED_TUNER_ENCODER :
+                handle_tuner_encoder();
+                __disable_interrupt();
+                if (buttonPressed == BTN_PRESSED_TUNER_ENCODER) {
+                    buttonPressed = BTN_PRESSED_NONE;
+                }
+                __enable_interrupt();
+                break;
             }
         }
     }
@@ -113,7 +124,33 @@ static void handle_menu_encoder(void)
     // menuSelectedIndex now contains the index to the new selected option
     // now update LCD status field to show current menu option
     updateLCD_status();
+}
 
+static void handle_tuner_encoder(void)
+{
+
+    if (GPIO_getInputPinValue(MENU_ENCODER_A) != GPIO_getInputPinValue(MENU_ENCODER_B))
+    {
+        //frequency increased; check that transmit frequency will not go outside band
+        if ( (radioState.frequency + radioState.freqMultiplier + radioState.xitOffset) <= radioState.maxBandFreq )
+        {
+            radioState.frequency += radioState.freqMultiplier;
+        }
+
+    } else {
+        // frequency decreased; check that transmit frequency will not go outside band
+        if ( (radioState.frequency - radioState.freqMultiplier + radioState.xitOffset) >= radioState.minBandFreq )
+        {
+            radioState.frequency -= radioState.freqMultiplier;
+        }
+    }
+    radioState.rxFrequency += radioState.ritOffset;
+    radioState.txFrequency += radioState.xitOffset;
+    setSI5351Freq(radioState.rxFrequency); // assume tuner encoder is not rotated while key down; therefore only update rx freq.
+    // tx frequency is only changed on the si5351 during key down.
+
+    // now update lcd frequency field; always show rx frequency only
+    updateLCD_freq();
 }
 
 // This routine will update menu LEDs and the latching relays for the filters

@@ -12,11 +12,14 @@ static void lcdWriteData(uint8_t *);
 static void lcdWriteCmd(uint8_t);
 static void setData(uint8_t);
 static char *number_to_string(uint32_t);
-//static void LCD_WriteField(const LcdField_t *, const char *);
+
 
 
 #define STATUS_FIELD 0x40
 #define STATUS_FIELD_WIDTH 12
+#define FREQ_FIELD 0x00
+#define FREQ_FIELD_WIDTH 12
+
 // cursor positions are based on 30M, 20M, 17M and 15M bands
 // for 40M, decrement all by 1
 #define CURSOR_10 0x08
@@ -37,11 +40,8 @@ static char cwSpeedBuffer[8];
 static char ritStateBuffer[16];
 */
 
-
-//static const LcdField_t fieldFreq   = { FREQ_FIELD, FREQ_FIELD_WIDTH };
-//static const LcdField_t fieldBand   = { BAND_FIELD, BAND_FIELD_WIDTH };
 static const LcdField_t fieldStatus = { STATUS_FIELD, STATUS_FIELD_WIDTH };
-//static const LcdField_t fieldMode = { MODE_FIELD, MODE_FIELD_WIDTH };
+static const LcdField_t fieldFreq   = { FREQ_FIELD, FREQ_FIELD_WIDTH };
 
 
 void lcdInit() {
@@ -378,7 +378,40 @@ void LCD_WriteField(const LcdField_t *field, const char *text, const char *suffi
     lcdWriteData(buf);
 }
 
+void updateLCD_freq(void)
+{
+    char *result;
+    char freqBuffer[16];
+    const char *suffix = NULL;
 
+    result = number_to_string(radioState.frequency);
+    if (radioState.bandIndex == BAND_40M)
+    {
+        freqBuffer[0] = *result++;
+        freqBuffer[1] = '.';
+        freqBuffer[2] = *result++;
+        freqBuffer[3] = *result++;
+        freqBuffer[4] = *result++;
+        freqBuffer[5] = '.';
+        freqBuffer[6] = *result++;
+        freqBuffer[7] = *result++;
+        freqBuffer[8] = *result++;
+        freqBuffer[9] = '\0';
+    } else {
+        freqBuffer[0] = *result++;
+        freqBuffer[1] = *result++;
+        freqBuffer[2] = '.';
+        freqBuffer[3] = *result++;
+        freqBuffer[4] = *result++;
+        freqBuffer[5] = *result++;
+        freqBuffer[6] = '.';
+        freqBuffer[7] = *result++;
+        freqBuffer[8] = *result++;
+        freqBuffer[9] = *result++;
+        freqBuffer[10] = '\0';
+    }
+    LCD_WriteField(&fieldFreq, freqBuffer, suffix);
+}
 /*
 
   // This routine will take the battery voltage and convert it to text for the LCD

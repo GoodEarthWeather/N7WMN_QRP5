@@ -17,6 +17,7 @@ void lcdInit();                                 // Initialize LCD
 void moveFreqCursor(uint8_t);
 void updateLCD_status(void);
 void LCD_WriteField(const LcdField_t *, const char *, const char *);
+void updateLCD_freq(void);
 
 // Delay Functions
 // Modified for an 8MHz clock

@@ -55,7 +55,7 @@ static void CalcRegisters(const uint32_t, uint8_t *);
  * for the receive frequency.  The outputs are in quadrature.
  */
 
-void setRXFreq(uint32_t freq) {
+void setSI5351Freq(uint32_t freq) {
     uint8_t regs[16];                  // Registers holding the FMD and OMD values
     uint8_t i, j;
 

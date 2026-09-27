@@ -42,6 +42,8 @@ __interrupt void Port_4(void)
     case  P4IV_P4IFG5:
         // P4.5 = tuner encoder A
         buttonPressed = BTN_PRESSED_TUNER_ENCODER;
+        // now toggle interrupt edge
+        P4IES ^= BIT5;
         break;
     case  P4IV_P4IFG6:
         // P4.6 = tuner encoder switch

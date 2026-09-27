@@ -13,29 +13,35 @@
 //static void selectAudioState(uint8_t);
 static void updateRelayShifter(uint8_t);
 
-#define FREQ_FIELD 0x00
+
 #define BAND_FIELD 0x0D
 #define MODE_FIELD 0x4D
-#define FREQ_FIELD_WIDTH 12
 #define BAND_FIELD_WIDTH 3
 #define MODE_FIELD_WIDTH 3
 
-static const LcdField_t fieldFreq   = { FREQ_FIELD, FREQ_FIELD_WIDTH };
+
 static const LcdField_t fieldBand   = { BAND_FIELD, BAND_FIELD_WIDTH };
 static const LcdField_t fieldMode = { MODE_FIELD, MODE_FIELD_WIDTH };
 
+// define frequency bands
+#define BAND_40M_LOWER 7000000
+#define BAND_40M_UPPER 7300000
+#define BAND_30M_LOWER 10100000
+#define BAND_30M_UPPER 10150000
+#define BAND_20M_LOWER 14000000
+#define BAND_20M_UPPER 14350000
+#define BAND_17M_LOWER 18068000
+#define BAND_17M_UPPER 18168000
+#define BAND_15M_LOWER 21000000
+#define BAND_15M_UPPER 21450000
+static uint32_t maxBand[] = {BAND_40M_UPPER, BAND_30M_UPPER, BAND_20M_UPPER, BAND_17M_UPPER, BAND_15M_UPPER};
+static uint32_t minBand[] = {BAND_40M_LOWER, BAND_30M_LOWER, BAND_20M_LOWER, BAND_17M_LOWER, BAND_15M_LOWER};
 
 // define rates - these numbers must match the order in the MenuItem_t definition
 #define RATE_10 10
 #define RATE_100 100
 #define RATE_1K 1000
 #define RATE_10K 10000
-// define bands - these numbers must match the order in the MenuItem_t definition
-// #define BAND_40M 0   //=> this is defined in radio_state.h because it is used by lcdLib.c
-#define BAND_30M 1
-#define BAND_20M 2
-#define BAND_17M 3
-#define BAND_15M 4
 
 #define SPOT_OFF 0
 #define SPOT_ON 1
@@ -48,7 +54,6 @@ static const LcdField_t fieldMode = { MODE_FIELD, MODE_FIELD_WIDTH };
 #define RELAY_20M 0b10100110
 #define RELAY_17M 0b10011010
 #define RELAY_15M 0b10011010
-
 // the indexes of relayCode[] correspond to the bandIndex
 static uint8_t relayCode[] = {RELAY_40M, RELAY_30M, RELAY_20M, RELAY_17M, RELAY_15M};
 
@@ -83,6 +88,8 @@ void handleHW_band(const MenuItem_t *item, int16_t value)
 
     radioState.bandIndex = (uint8_t)value;
     radioState.bandRelayCode = relayCode[(uint8_t)value];
+    radioState.maxBandFreq = maxBand[(uint8_t)value];
+    radioState.minBandFreq = minBand[(uint8_t)value];
     LCD_WriteField(&fieldBand,bandName[(uint8_t)value],suffix);
     // now update shift register to select new band
     updateRelayShifter(radioState.bandRelayCode); // shift in relay code to change relay

@@ -74,28 +74,39 @@ void initGPIO(void)
    //Initialize rotary encoder inputs and rotary encoder switches
    // P5.0(switch), P5.1(A), P5.2(B) - for LED encoder
    // P4.7(A), P6.2(B), P6.1(switch) for menu encoder
+   // P4.5(A), P2.2(B), P4.6(xwitch) for tuner encoder
    GPIO_setAsInputPin(LED_ENCODER_A);
    GPIO_setAsInputPin(LED_ENCODER_B);
    GPIO_setAsInputPin(LED_ENCODER_SWITCH);
    GPIO_setAsInputPin(MENU_ENCODER_A);
    GPIO_setAsInputPin(MENU_ENCODER_B);
    GPIO_setAsInputPin(MENU_ENCODER_SWITCH);
+   GPIO_setAsInputPin(TUNER_ENCODER_A);
+   GPIO_setAsInputPin(TUNER_ENCODER_B);
+   GPIO_setAsInputPin(TUNER_ENCODER_SWITCH);
 
    GPIO_selectInterruptEdge(LED_ENCODER_A, GPIO_HIGH_TO_LOW_TRANSITION);  // interrupt on falling edge of menu encoder pin A
    GPIO_selectInterruptEdge(LED_ENCODER_SWITCH, GPIO_HIGH_TO_LOW_TRANSITION);  // interrupt on falling edge of menu encoder switch
    GPIO_selectInterruptEdge(MENU_ENCODER_A, GPIO_HIGH_TO_LOW_TRANSITION);  // interrupt on falling edge of menu option encoder pin A
    GPIO_selectInterruptEdge(MENU_ENCODER_SWITCH, GPIO_HIGH_TO_LOW_TRANSITION);  // interrupt on falling edge of menu option encoder switch
+   GPIO_selectInterruptEdge(TUNER_ENCODER_A, GPIO_HIGH_TO_LOW_TRANSITION);  // interrupt on falling edge of tuner encoder pin A
+   GPIO_selectInterruptEdge(TUNER_ENCODER_SWITCH, GPIO_HIGH_TO_LOW_TRANSITION);  // interrupt on falling edge of tuner encoder switch
 
    // Configure interrupts for encoder
    GPIO_enableInterrupt(LED_ENCODER_A);
    GPIO_clearInterrupt(LED_ENCODER_A);
    GPIO_enableInterrupt(LED_ENCODER_SWITCH);
    GPIO_clearInterrupt(LED_ENCODER_SWITCH);
+
    GPIO_enableInterrupt(MENU_ENCODER_A);
    GPIO_clearInterrupt(MENU_ENCODER_A);
    GPIO_enableInterrupt(MENU_ENCODER_SWITCH);
    GPIO_clearInterrupt(MENU_ENCODER_SWITCH);
 
+   GPIO_enableInterrupt(TUNER_ENCODER_A);
+   GPIO_clearInterrupt(TUNER_ENCODER_A);
+   GPIO_enableInterrupt(TUNER_ENCODER_SWITCH);
+   GPIO_clearInterrupt(TUNER_ENCODER_SWITCH);
 
    // initalize LCD I/O
    GPIO_setAsOutputPin(LCD_D4);

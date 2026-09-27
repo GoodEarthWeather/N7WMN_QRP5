@@ -8,7 +8,7 @@
 #ifndef SI5351_H_
 #define SI5351_H_
 
-void setRXFreq(uint32_t);
+void setSI5351Freq(uint32_t);
 void initialize_si5351(void);
 void si5351_disable_spread_spectrum(void);
 
