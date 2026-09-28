@@ -23,6 +23,8 @@ void handleHW_spot(const MenuItem_t *, int16_t);
 void handleHW_mode(const MenuItem_t *, int16_t);
 void initializeHW(void);
 void initializeRadioState(void);
+void handleHW_audioMode(const MenuItem_t *, int16_t);
+void handleHW_mute(const MenuItem_t *, int16_t);
 
 #define BAND_40M 0   //=> this is defined in radio_state.h because it is used by lcdLib.c
 #define BAND_30M 1
@@ -34,13 +36,9 @@ void initializeRadioState(void);
 typedef struct
 {
     uint8_t txMode; // flag; if true, in transmit mode; if not true, in receive mode
-    //uint8_t selectedSideband;
-    //uint8_t selectedFilter;
     uint8_t audioState;
     uint8_t wpm;  // current cw speed
-    uint32_t frequency; // current vco freq; not including rit or xit
-    uint32_t rxFrequency;  // current vco freq. with rit
-    uint32_t txFrequency;  // current vco freq. with xit
+    uint32_t frequency[5];
     int16_t ritOffset;
     uint16_t xitOffset;
     uint16_t freqMultiplier;

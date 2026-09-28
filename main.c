@@ -22,6 +22,7 @@ int main(void) {
     initGPIO();
     initClocks();
     lcdInit();
+    initSideToneTimer();
     initialize_si5351();
     si5351_disable_spread_spectrum();
     Menu_Init();
@@ -130,30 +131,29 @@ static void handle_menu_encoder(void)
 
 static void handle_tuner_encoder(void)
 {
+    uint8_t i = radioState.bandIndex;
+    extern uint8_t encoderCWCount, encoderCCWCount;
 
-    if (GPIO_getInputPinValue(MENU_ENCODER_A) != GPIO_getInputPinValue(MENU_ENCODER_B))
+    if (encoderCWCount != 0)
     {
         //frequency increased; check that transmit frequency will not go outside band
-        if ( (radioState.frequency + radioState.freqMultiplier + radioState.xitOffset) <= radioState.maxBandFreq )
+        if ( (radioState.frequency[i] + radioState.freqMultiplier + radioState.xitOffset) <= radioState.maxBandFreq )
         {
-            radioState.frequency += radioState.freqMultiplier;
+            radioState.frequency[i] += radioState.freqMultiplier;
         }
 
-    } else {
+    } else if (encoderCCWCount != 0)  {
         // frequency decreased; check that transmit frequency will not go outside band
-        if ( (radioState.frequency - radioState.freqMultiplier + radioState.xitOffset) >= radioState.minBandFreq )
+        if ( (radioState.frequency[i] - radioState.freqMultiplier + radioState.xitOffset) >= radioState.minBandFreq )
         {
-            radioState.frequency -= radioState.freqMultiplier;
+            radioState.frequency[i] -= radioState.freqMultiplier;
         }
     }
-    radioState.rxFrequency += radioState.ritOffset;
-    radioState.txFrequency += radioState.xitOffset;
-    setSI5351Freq(radioState.rxFrequency); // assume tuner encoder is not rotated while key down; therefore only update rx freq.
-    // tx frequency is only changed on the si5351 during key down.
-
+    encoderCWCount = encoderCCWCount = 0;
     // now update lcd frequency field; always show rx frequency only
     updateLCD_freq();
 }
+
 
 // This routine will update menu LEDs and the latching relays for the filters
 // Sends '4' bytes out to a chain of cascaded 74HCT595s and latches once.

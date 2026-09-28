@@ -384,7 +384,7 @@ void updateLCD_freq(void)
     char freqBuffer[16];
     const char *suffix = NULL;
 
-    result = number_to_string(radioState.frequency);
+    result = number_to_string(radioState.frequency[radioState.bandIndex]);
     if (radioState.bandIndex == BAND_40M)
     {
         freqBuffer[0] = *result++;

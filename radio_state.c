@@ -6,6 +6,7 @@
 #include "lcdLib.h"
 #include "menu_data.h"
 #include "init.h"
+#include "si5351.h"
 
 
 static void updateRelayShifter(uint8_t);
@@ -72,7 +73,18 @@ void initializeRadioState(void)
     {
         radioState.txMode = 0; // receive mode
         radioState.audioState = MUTE_OFF;
-        radioState.frequency = BAND_40M_LOWER;
+        radioState.frequency[0] = BAND_40M_LOWER;
+        radioState.frequency[1] = BAND_30M_LOWER;
+        radioState.frequency[2] = BAND_20M_LOWER;
+        radioState.frequency[3] = BAND_17M_LOWER;
+        radioState.frequency[4] = BAND_15M_LOWER;
+        radioState.ritOffset = 0;
+        radioState.xitOffset = 0;
+        radioState.maxBandFreq = BAND_40M_UPPER;
+        radioState.minBandFreq = BAND_40M_LOWER;
+        radioState.ledIndex = 0;
+
+        radioStateInitialized = 0x01;
     }
 
 }
@@ -130,7 +142,7 @@ void handleHW_band(const MenuItem_t *item, int16_t value)
     updateRelayShifter(0); // zero out relay code; magnetic latch holding relay
 
     // now, set the si5351 to the correct output frequency
-    setSI5351Freq(radioState.frequency);
+    setSI5351Freq(radioState.frequency[value]);
     // now update the LCD freq. field
     updateLCD_freq();
 }

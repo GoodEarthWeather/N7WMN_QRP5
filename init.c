@@ -200,3 +200,27 @@ void init_spi_shift_register(void)
 
 }
 
+// initialize timer A0 for up mode - for side tone
+void initSideToneTimer(void)
+{
+
+    // timer is clocked by 32768 clock
+    // (1/600Hz)/(1/32768Hz) is about 55 counts, so set compare threshold to 55
+    //Start timer in up mode sourced by ACLK
+    Timer_A_initUpModeParam initUpParam = {0};
+    initUpParam.clockSource = TIMER_A_CLOCKSOURCE_ACLK;
+    initUpParam.clockSourceDivider = TIMER_A_CLOCKSOURCE_DIVIDER_1;
+    initUpParam.timerInterruptEnable_TAIE = TIMER_A_TAIE_INTERRUPT_DISABLE;
+    initUpParam.captureCompareInterruptEnable_CCR0_CCIE = TIMER_A_CCIE_CCR0_INTERRUPT_DISABLE;
+    initUpParam.timerClear = TIMER_A_DO_CLEAR;
+    initUpParam.startTimer = false;
+    initUpParam.timerPeriod = (uint16_t)(26);
+    Timer_A_initUpMode(TIMER_A0_BASE, &initUpParam);
+    Timer_A_setOutputMode(TIMER_A0_BASE,TIMER_A_CAPTURECOMPARE_REGISTER_1,TIMER_A_OUTPUTMODE_TOGGLE);
+    Timer_A_setOutputForOutputModeOutBitValue(TIMER_A0_BASE,TIMER_A_CAPTURECOMPARE_REGISTER_1,TIMER_A_OUTPUTMODE_OUTBITVALUE_LOW);
+
+    //Initiaze compare mode
+    Timer_A_clearCaptureCompareInterrupt(TIMER_A0_BASE,
+        TIMER_A_CAPTURECOMPARE_REGISTER_1
+        );
+}

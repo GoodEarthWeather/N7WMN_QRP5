@@ -6,8 +6,10 @@
  */
 #include "driverlib.h"
 #include "isr.h"
+#include "init.h"
 
 uint8_t volatile buttonPressed = BTN_PRESSED_NONE;
+uint8_t encoderCWCount, encoderCCWCount;
 
 // Port 3 interrupt service routine
 #pragma vector=PORT3_VECTOR
@@ -42,6 +44,12 @@ __interrupt void Port_4(void)
     case  P4IV_P4IFG5:
         // P4.5 = tuner encoder A
         buttonPressed = BTN_PRESSED_TUNER_ENCODER;
+        if (GPIO_getInputPinValue(TUNER_ENCODER_A) != GPIO_getInputPinValue(TUNER_ENCODER_B))
+        {
+            encoderCWCount++;
+        } else {
+            encoderCCWCount++;
+        }
         // now toggle interrupt edge
         P4IES ^= BIT5;
         break;
