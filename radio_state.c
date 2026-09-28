@@ -8,9 +8,6 @@
 #include "init.h"
 
 
-//static void selectFilter(uint8_t);
-//static void selectSideband(uint8_t);
-//static void selectAudioState(uint8_t);
 static void updateRelayShifter(uint8_t);
 
 
@@ -46,8 +43,10 @@ static uint32_t minBand[] = {BAND_40M_LOWER, BAND_30M_LOWER, BAND_20M_LOWER, BAN
 #define SPOT_OFF 0
 #define SPOT_ON 1
 
-#define MUTE 0x1
-#define UNMUTE 0x0
+#define MUTE_ON 0x1
+#define MUTE_OFF 0x0
+#define CW_FILTER 0
+#define MONAURAL 0
 
 #define RELAY_40M 0b01101001
 #define RELAY_30M 0b10100110
@@ -58,9 +57,42 @@ static uint32_t minBand[] = {BAND_40M_LOWER, BAND_30M_LOWER, BAND_20M_LOWER, BAN
 static uint8_t relayCode[] = {RELAY_40M, RELAY_30M, RELAY_20M, RELAY_17M, RELAY_15M};
 
 
-
+#pragma PERSISTENT(radioState)
 RadioState_t radioState = { 0 };
+#pragma PERSISTENT(radioStateInitialized)
+static uint8_t radioStateInitialized = 0xFF; /* 0xFF => "never initialized" */
 
+/*
+ * This function will only execute if the radioState data structure has never
+ * been initialized.
+ */
+void initializeRadioState(void)
+{
+    if (radioStateInitialized != 0x01)
+    {
+        radioState.txMode = 0; // receive mode
+        radioState.audioState = MUTE_OFF;
+        radioState.frequency = BAND_40M_LOWER;
+    }
+
+}
+/*
+ * This function is called upon power up; it will go through the menu data
+ * structure and configure the HW to reflect each menu item.  Each callback
+ * function will also set the corresponding variable in radioState.
+ */
+void initializeHW(void)
+{
+    // note that in the routine Menu_Init(), each of the callback functions associated
+    // with each menu item was called and the hw was configured for each of those functions.
+    // the pins below are not part of the menu system and are set up here
+    GPIO_setOutputHighOnPin(POWER_RF_ENABLE);  // set high to disable rf clock to tri-state buffers
+    GPIO_setOutputLowOnPin(POWER_DRV_ENABLE);  // set low to disable switching regulator for rf gate drivers
+    GPIO_setOutputLowOnPin(POWER_AMP_ENABLE);  // set low to disable switching regulator for power output stage
+    GPIO_setOutputHighOnPin(TR_SWITCH);  // set high to configure for receive mode
+    GPIO_setOutputLowOnPin(TX_LED);  // set low to disable transmit led
+
+}
 /* ------------------------------------------------------------------ */
 /* Hardware / state action callbacks -- ONE per menu item, no          */
 /* exceptions. Even a "just set a variable" item gets a function here  */
@@ -97,15 +129,10 @@ void handleHW_band(const MenuItem_t *item, int16_t value)
     delay_ms(12);
     updateRelayShifter(0); // zero out relay code; magnetic latch holding relay
 
-    //selectAudioState(MUTE);
-    /*
-    // reset menu function
-    ritState = DISABLED;
-    ritOffset = 0;
-    receiveMode = RXMODE_CW;
-    initADC(BATTERY_MEASUREMENT);
-    *
-    */
+    // now, set the si5351 to the correct output frequency
+    setSI5351Freq(radioState.frequency);
+    // now update the LCD freq. field
+    updateLCD_freq();
 }
 
 // Routine to handle mode
@@ -123,6 +150,11 @@ void handleHW_filter(const MenuItem_t *item, int16_t value)
 {
     radioState.filterIndex = (uint8_t)value;
     // write code to implement HW change of filter
+    if (value == CW_FILTER)
+        GPIO_setOutputHighOnPin(FILTER_SELECT);  // set low for narrow filter
+    else
+        GPIO_setOutputLowOnPin(FILTER_SELECT); // set low for wide filter
+
 }
 
 // Routine to handle keyer option (iambic-a, iambic-b, ultimatic)
@@ -132,17 +164,39 @@ void handleHW_keyer(const MenuItem_t *item, int16_t value)
     // write code to implement SW change of keyer type
 }
 
-// Routine to handle spot
+// Routine to handle spot - not stored in radioState
 void handleHW_spot(const MenuItem_t *item, int16_t value)
 {
     if ((uint8_t)value == SPOT_OFF) {
         // handle turning spot off
-        ;
+        Timer_A_stop(TIMER_A0_BASE);  // stop side tone
+        Timer_A_setOutputForOutputModeOutBitValue(TIMER_A0_BASE,TIMER_A_CAPTURECOMPARE_REGISTER_1,TIMER_A_OUTPUTMODE_OUTBITVALUE_LOW);
     } else {
-        // handle turning spot on
-        ;
+        // turning spot on
+        Timer_A_startCounter(TIMER_A0_BASE,TIMER_A_UP_MODE);  // start side tone
     }
-    // write code to implement SW change of keyer type
+}
+
+// Routine to mute audio - not stored in radioState
+// This only mutes from the menu; internal muting is handled elsewhere
+void handleHW_mute(const MenuItem_t *item, int16_t value)
+{
+    if ((uint8_t)value == MUTE_OFF) {
+        GPIO_setOutputLowOnPin(MUTE_OUT); // set low to unmute
+    } else {
+        GPIO_setOutputHighOnPin(MUTE_OUT); // set high to mute
+    }
+}
+
+// Routine to select audio mode: binaural or monaural
+void handleHW_audioMode(const MenuItem_t *item, int16_t value)
+{
+    radioState.audioMode = (uint8_t)value;
+    if ((uint8_t)value == MONAURAL) {
+        GPIO_setOutputLowOnPin(SELECT_BINAURAL); // set low to select monaural
+    } else {
+        GPIO_setOutputHighOnPin(SELECT_BINAURAL); // set high to select binaural
+    }
 }
 
 /*
@@ -152,41 +206,11 @@ void handleHW_rate(const MenuItem_t *item, int16_t value)
 {
     const uint32_t rateValues[] = {10,100,1000,10000};
     // value is the index into the *item list
-    radioState.freqMultiplier = rateValues[value];
-    moveFreqCursor((uint8_t)value);
+    radioState.freqMultiplier = rateValues[(uint8_t)value];
+    // not using visible cursor for now, so don't need to call this:
+    //moveFreqCursor((uint8_t)value);
 }
 
-/*******************
-// routine to select filter
-static void selectFilter(uint8_t filter)
-{
-    radioState.selectedFilter = filter;
-    if (filter == CW_FILTER)
-        GPIO_setOutputLowOnPin(FILTER_SELECT);  // set low for CW filter
-    else
-        GPIO_setOutputHighOnPin(FILTER_SELECT); // set high for SSB filter
-}
-
-// routine to select sideband
-static void selectSideband(uint8_t sideband)
-{
-    radioState.selectedSideband = sideband;
-    if (sideband == UPPER_SIDEBAND)
-        GPIO_setOutputHighOnPin(SIDEBAND_SELECT);  // need to check
-    else
-        GPIO_setOutputLowOnPin(SIDEBAND_SELECT); // need to check
-}
-
-// routine to set audio state - mute or unmute
-static void selectAudioState(uint8_t state)
-{
-    radioState.audioState = state;
-    if ( state == MUTE )
-        GPIO_setOutputHighOnPin(TR_MUTE); // set high for mute pin
-    else if (state == UNMUTE)
-        GPIO_setOutputLowOnPin(TR_MUTE); // set low for unmute pin
-}
-***************/
 // This routine will update  the latching relays for the filters
 // Sends '4' bytes out to a chain of cascaded 74HCT595s and latches once.
 // data[3] = byte for filter latching relays - first chip

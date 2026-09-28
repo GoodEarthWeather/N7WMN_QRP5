@@ -28,6 +28,8 @@ int main(void) {
     updateLCD_status();
     init_spi_shift_register();
     updateLEDShifter(0);  // initialize led array
+    initializeRadioState();
+    initializeHW();
 
     while (1)
     {

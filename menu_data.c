@@ -81,7 +81,7 @@ const MenuItem_t menuTable[NUM_MENU_ITEMS] =
         .type = MENU_TYPE_LIST,
         .def.list = { .options = bandOptions,
                        .numOptions = sizeof(bandOptions)/sizeof(bandOptions[0]),
-                       .defaultIndex = 1 /* "30M" */ },
+                       .defaultIndex = 0 /* "40M" */ },
         .action = handleHW_band
     },
     /* index 1 */
@@ -123,7 +123,7 @@ const MenuItem_t menuTable[NUM_MENU_ITEMS] =
         .def.list = { .options = muteOptions,
                        .numOptions = sizeof(muteOptions)/sizeof(muteOptions[0]),
                        .defaultIndex = 0 },
-        .action = NULL
+        .action = handleHW_mute
     },
     /* index 5 */
     {
@@ -201,7 +201,7 @@ const MenuItem_t menuTable[NUM_MENU_ITEMS] =
         .def.list = { .options = audioOptions,
                        .numOptions = sizeof(audioOptions)/sizeof(audioOptions[0]),
                        .defaultIndex = 0 },
-        .action = NULL
+        .action = handleHW_audioMode
     },
     /* index 13 */
     {
