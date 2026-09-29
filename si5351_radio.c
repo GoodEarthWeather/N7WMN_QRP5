@@ -2,6 +2,7 @@
 #include "driverlib.h"
 #include <stdint.h>
 #include "si5351.h"
+#include "radio_state.h"
 
 #define SI5351_ADDRESS          0x60
 
@@ -22,6 +23,10 @@
 #define REG_CLK1_PHOFF          166
 #define XTAL_LOAD_CAP           183
 
+#define RECEIVE_MODE 0
+#define CW 0
+#define CWR 1
+
 /*
  * Crystal load capacitance register (183).
  * Bits 7:6 select the load, bits 5:0 must be 010010.
@@ -32,7 +37,8 @@
  */
 #define XTAL_CL_VALUE           0xD2
 
-#define XTAL_NOMINAL_HZ         25000000UL
+//#define XTAL_NOMINAL_HZ         25000000UL
+#define XTAL_NOMINAL_HZ         24999503UL
 #define MAX_PHASE_OFFSET        127UL      // phase offset registers are 7 bits
 
 #define delay_us(x)     __delay_cycles((long) x * 8)
@@ -94,7 +100,19 @@ int setSI5351Freq(uint32_t freq)
 {
     uint8_t regs[16];
     uint8_t i;
+    static int lastSideband = -1;
 
+    // adjust frequency as needed
+    if (radioState.txMode == RECEIVE_MODE)
+    {
+        freq += radioState.ritOffset;
+        if (radioState.modeIndex == CW || radioState.modeIndex == CWR)
+            (radioState.selectedSideband == LOWER_SIDEBAND) ? (freq += radioState.sidetoneFreq) : (freq -= radioState.sidetoneFreq);
+    }
+    else
+    {
+        freq += radioState.xitOffset;
+    }
     uint32_t d = CalcRegisters(freq, regs);
 
     if (d > MAX_PHASE_OFFSET)
@@ -103,7 +121,8 @@ int setSI5351Freq(uint32_t freq)
     // PLLA feedback multisynth (always updated): 8 bytes, one transaction
     i2cSendBurst(REG_PLLA_PARAMETERS, regs, 8);
 
-    if (d != lastD)
+
+    if (d != lastD || (int)radioState.selectedSideband != lastSideband)
     {
         // MS0 (regs 42-49) and MS1 (regs 50-57) are contiguous and use the
         // same divider, so send both as one 16-byte transaction.
@@ -115,8 +134,13 @@ int setSI5351Freq(uint32_t freq)
         // CLK0_PHOFF (165) and CLK1_PHOFF (166) are also contiguous.
         // Swap the two bytes to change the phase relationship (usb/lsb).
         uint8_t ph[2];
-        ph[0] = (uint8_t)d;     // CLK0 phase offset
-        ph[1] = 0;              // CLK1 phase offset
+        if (radioState.selectedSideband == LOWER_SIDEBAND) {
+            ph[0] = (uint8_t)d;     // CLK0 phase offset
+            ph[1] = 0;              // CLK1 phase offset
+        } else {
+            ph[1] = (uint8_t)d;     // CLK1 phase offset
+            ph[0] = 0;              // CLK0 phase offset
+        }
         i2cSendBurst(REG_CLK0_PHOFF, ph, 2);
 
         // Phase offsets take effect on a PLL reset
@@ -124,6 +148,7 @@ int setSI5351Freq(uint32_t freq)
         i2cSendRegister(PLL_RESET, 0x20);   // reset PLLA
 
         lastD = d;
+        lastSideband = (int)radioState.selectedSideband;
     }
     return 0;
 }

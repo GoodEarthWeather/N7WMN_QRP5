@@ -83,6 +83,8 @@ void initializeRadioState(void)
         radioState.maxBandFreq = BAND_40M_UPPER;
         radioState.minBandFreq = BAND_40M_LOWER;
         radioState.ledIndex = 0;
+        radioState.selectedSideband = UPPER_SIDEBAND;
+        radioState.sidetoneFreq = 600;
 
         radioStateInitialized = 0x01;
     }
@@ -151,11 +153,15 @@ void handleHW_band(const MenuItem_t *item, int16_t value)
 // Routine to handle mode
 void handleHW_mode(const MenuItem_t *item, int16_t value)
 {
-    const char * modeName[] = {" CW", "USB", "LSB"};
+    const char * modeName[] = {" CW", "CWR", "USB", "LSB"};
+    const uint8_t sideband[] = {UPPER_SIDEBAND, LOWER_SIDEBAND, UPPER_SIDEBAND, LOWER_SIDEBAND};
     const char *suffix = NULL;
+
     radioState.modeIndex = (uint8_t)value;
+    radioState.selectedSideband = sideband[value];
     LCD_WriteField(&fieldMode,modeName[(uint8_t)value],suffix);
     // write code to implement HW change of mode
+    setSI5351Freq(radioState.frequency[radioState.bandIndex]);
 }
 
 // Routine to handle audio filter

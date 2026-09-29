@@ -31,6 +31,9 @@ void handleHW_mute(const MenuItem_t *, int16_t);
 #define BAND_20M 2
 #define BAND_17M 3
 #define BAND_15M 4
+#define LOWER_SIDEBAND 0
+#define UPPER_SIDEBAND 1
+
 
 
 typedef struct
@@ -38,9 +41,10 @@ typedef struct
     uint8_t txMode; // flag; if true, in transmit mode; if not true, in receive mode
     uint8_t audioState;
     uint8_t wpm;  // current cw speed
+    uint8_t selectedSideband;
     uint32_t frequency[5];
     int16_t ritOffset;
-    uint16_t xitOffset;
+    int16_t xitOffset;
     uint16_t freqMultiplier;
     uint8_t bandIndex;
     uint32_t maxBandFreq;
@@ -51,6 +55,7 @@ typedef struct
     uint8_t keyerIndex;
     uint8_t ledIndex;
     uint8_t audioMode;
+    uint16_t sidetoneFreq;
 } RadioState_t;
 
 extern RadioState_t radioState;

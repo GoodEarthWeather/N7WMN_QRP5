@@ -22,7 +22,7 @@ static const char * const bandOptions[] =
 
 static const char * const modeOptions[] =
 {
-    "MODE: CW", "MODE: USB", "MODE: LSB"
+    "MODE: CW", "MODE: CWR", "MODE: USB", "MODE: LSB"
 };
 
 static const char * const keyerOptions[] =
