@@ -10,7 +10,6 @@
 #include "si5351.h"
 
 #define SI5351_ADDRESS          0x60
-#define XTAL_FREQ               25000000ULL  // 27 MHz Crystal Oscillator
 
 // Critical Si5351 Registers
 #define DEVICE_STATUS           0
@@ -131,7 +130,7 @@ void initialize_si5351(void)
     i2cSendRegister(REG_CLK2_CTRL, 0xCF);
 
     // Reference load configuration
-    i2cSendRegister(XTAL_LOAD_CAP, 0x12);          // Set reference load C: 6 pF = 0x12, 8 pF = 0x92, 10 pF = 0xD2
+    i2cSendRegister(XTAL_LOAD_CAP, 0xD2);          // Set reference load C: 6 pF = 0x52, 8 pF = 0x92, 10 pF = 0xD2
 
 
     // Turn CLK0 and CLK1 output on
@@ -140,7 +139,7 @@ void initialize_si5351(void)
 
 static void CalcRegisters(const uint32_t fout, uint8_t *regs)
 {
-    uint32_t fref = 27000000UL;                  // The reference frequency
+    uint32_t fref = 25000000UL;                  // The reference frequency
 
     // Calc Output Multisynth Divider and R with e = 0 and f = 1 => msx_p2 = 0 and msx_p3 = 1
     uint32_t d = 4;

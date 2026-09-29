@@ -103,6 +103,7 @@ void initializeHW(void)
     GPIO_setOutputLowOnPin(POWER_AMP_ENABLE);  // set low to disable switching regulator for power output stage
     GPIO_setOutputHighOnPin(TR_SWITCH);  // set high to configure for receive mode
     GPIO_setOutputLowOnPin(TX_LED);  // set low to disable transmit led
+    setSI5351Freq(radioState.frequency[radioState.bandIndex]);
 
 }
 /* ------------------------------------------------------------------ */
@@ -142,7 +143,7 @@ void handleHW_band(const MenuItem_t *item, int16_t value)
     updateRelayShifter(0); // zero out relay code; magnetic latch holding relay
 
     // now, set the si5351 to the correct output frequency
-    setSI5351Freq(radioState.frequency[value]);
+    setSI5351Freq(radioState.frequency[(uint8_t)value]);
     // now update the LCD freq. field
     updateLCD_freq();
 }

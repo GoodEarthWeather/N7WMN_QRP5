@@ -136,22 +136,14 @@ static void handle_tuner_encoder(void)
 
     if (encoderCWCount != 0)
     {
-        //frequency increased; check that transmit frequency will not go outside band
-        if ( (radioState.frequency[i] + radioState.freqMultiplier + radioState.xitOffset) <= radioState.maxBandFreq )
-        {
-            radioState.frequency[i] += radioState.freqMultiplier;
-        }
-
+        radioState.frequency[i] += radioState.freqMultiplier;
     } else if (encoderCCWCount != 0)  {
-        // frequency decreased; check that transmit frequency will not go outside band
-        if ( (radioState.frequency[i] - radioState.freqMultiplier + radioState.xitOffset) >= radioState.minBandFreq )
-        {
-            radioState.frequency[i] -= radioState.freqMultiplier;
-        }
+        radioState.frequency[i] -= radioState.freqMultiplier;
     }
     encoderCWCount = encoderCCWCount = 0;
     // now update lcd frequency field; always show rx frequency only
     updateLCD_freq();
+    setSI5351Freq(radioState.frequency[i]);
 }
 
 
