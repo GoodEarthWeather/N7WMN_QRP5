@@ -111,7 +111,10 @@ int setSI5351Freq(uint32_t freq)
     }
     else
     {
-        freq += radioState.xitOffset;
+        if ((freq + radioState.xitOffset <= radioState.maxBandFreq) && (freq + radioState.xitOffset >= radioState.minBandFreq))
+        {
+            freq += radioState.xitOffset;
+        }
     }
     uint32_t d = CalcRegisters(freq, regs);
 

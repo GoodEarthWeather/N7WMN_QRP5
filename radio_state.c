@@ -10,6 +10,8 @@
 
 
 static void updateRelayShifter(uint8_t);
+static void muteAudio(void);
+static void unmuteAudio(void);
 
 
 #define BAND_FIELD 0x0D
@@ -46,7 +48,7 @@ static uint32_t minBand[] = {BAND_40M_LOWER, BAND_30M_LOWER, BAND_20M_LOWER, BAN
 
 #define MUTE_ON 0x1
 #define MUTE_OFF 0x0
-#define CW_FILTER 0
+#define CW_FILTER 1
 #define MONAURAL 0
 
 #define RELAY_40M 0b01101001
@@ -133,6 +135,7 @@ void handleHW_band(const MenuItem_t *item, int16_t value)
     const char *suffix = NULL;
     const char * bandName[] = {"40M", "30M", "20M", "17M", "15M"};
 
+    muteAudio();
     radioState.bandIndex = (uint8_t)value;
     radioState.bandRelayCode = relayCode[(uint8_t)value];
     radioState.maxBandFreq = maxBand[(uint8_t)value];
@@ -148,6 +151,8 @@ void handleHW_band(const MenuItem_t *item, int16_t value)
     setSI5351Freq(radioState.frequency[(uint8_t)value]);
     // now update the LCD freq. field
     updateLCD_freq();
+    delay_ms(3);
+    unmuteAudio();
 }
 
 // Routine to handle mode
@@ -157,11 +162,14 @@ void handleHW_mode(const MenuItem_t *item, int16_t value)
     const uint8_t sideband[] = {UPPER_SIDEBAND, LOWER_SIDEBAND, UPPER_SIDEBAND, LOWER_SIDEBAND};
     const char *suffix = NULL;
 
+    muteAudio();
     radioState.modeIndex = (uint8_t)value;
     radioState.selectedSideband = sideband[value];
     LCD_WriteField(&fieldMode,modeName[(uint8_t)value],suffix);
     // write code to implement HW change of mode
     setSI5351Freq(radioState.frequency[radioState.bandIndex]);
+    delay_ms(10);
+    unmuteAudio();
 }
 
 // Routine to handle audio filter
@@ -210,12 +218,15 @@ void handleHW_mute(const MenuItem_t *item, int16_t value)
 // Routine to select audio mode: binaural or monaural
 void handleHW_audioMode(const MenuItem_t *item, int16_t value)
 {
+    muteAudio();
     radioState.audioMode = (uint8_t)value;
     if ((uint8_t)value == MONAURAL) {
         GPIO_setOutputLowOnPin(SELECT_BINAURAL); // set low to select monaural
     } else {
         GPIO_setOutputHighOnPin(SELECT_BINAURAL); // set high to select binaural
     }
+    delay_ms(10);
+    unmuteAudio();
 }
 
 /*
@@ -264,6 +275,15 @@ static void updateRelayShifter(uint8_t relayCode)
     GPIO_setOutputHighOnPin(REG_CLK);
     __delay_cycles(10);
     GPIO_setOutputLowOnPin(REG_CLK);
+}
 
+static void muteAudio(void)
+{
+    GPIO_setOutputHighOnPin(MUTE_OUT); // set high to mute
+}
+
+static void unmuteAudio(void)
+{
+    GPIO_setOutputLowOnPin(MUTE_OUT); // set low to unmute
 }
 

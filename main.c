@@ -136,9 +136,11 @@ static void handle_tuner_encoder(void)
 
     if (encoderCWCount != 0)
     {
-        radioState.frequency[i] += radioState.freqMultiplier;
+        if (radioState.frequency[i] + radioState.freqMultiplier <= radioState.maxBandFreq)
+            radioState.frequency[i] += radioState.freqMultiplier;
     } else if (encoderCCWCount != 0)  {
-        radioState.frequency[i] -= radioState.freqMultiplier;
+        if (radioState.frequency[i] - radioState.freqMultiplier >= radioState.minBandFreq)
+            radioState.frequency[i] -= radioState.freqMultiplier;
     }
     encoderCWCount = encoderCCWCount = 0;
     // now update lcd frequency field; always show rx frequency only
