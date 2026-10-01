@@ -8,6 +8,7 @@
 #include "init.h"
 #include "lcdLib.h"
 #include "driverlib.h"
+#include "radio_state.h"
 
 #define SHIFTER_CLOCK   GPIO_PORT_P2, GPIO_PIN4
 #define SHIFTER_DATA   GPIO_PORT_P2, GPIO_PIN6
@@ -149,8 +150,8 @@ void initGPIO(void)
    GPIO_setAsOutputPin(POWER_RF_ENABLE);
    GPIO_setOutputHighOnPin(POWER_RF_ENABLE); // set high to tri-state buffers
 
-   GPIO_setAsInputPin(PADDLE_DIT);
-   GPIO_setAsInputPin(PADDLE_DAH);
+   GPIO_setAsInputPin(DIT_KEY);
+   GPIO_setAsInputPin(DAH_KEY);
    GPIO_setAsInputPin(STRAIGHT_KEY);
 
    GPIO_setAsOutputPin(TR_SWITCH);
@@ -159,6 +160,15 @@ void initGPIO(void)
    GPIO_setOutputLowOnPin(CWTX_OUT);
    GPIO_setAsOutputPin(MUTE_OUT);
    GPIO_setOutputLowOnPin(MUTE_OUT);
+
+   // configure cw key interrupts
+   GPIO_selectInterruptEdge(DIT_KEY, GPIO_HIGH_TO_LOW_TRANSITION);  // interrupt on falling edge of dit key
+   GPIO_selectInterruptEdge(DAH_KEY, GPIO_HIGH_TO_LOW_TRANSITION);  // interrupt on falling edge of dit key
+   GPIO_enableInterrupt(DIT_KEY);
+   GPIO_clearInterrupt(DIT_KEY);
+   GPIO_enableInterrupt(DAH_KEY);
+   GPIO_clearInterrupt(DAH_KEY);
+
 
    // Initialize side tone output
    GPIO_setAsPeripheralModuleFunctionOutputPin(SIDETONE_OUTPUT,GPIO_SECONDARY_MODULE_FUNCTION);
@@ -224,3 +234,107 @@ void initSideToneTimer(void)
         TIMER_A_CAPTURECOMPARE_REGISTER_1
         );
 }
+// initialize timer A1 for continuous mode - for QSK timing
+void initQSKTimer(uint16_t delay)
+{
+    uint16_t compareValue;
+    // convert delay in milliseconds to a compare value
+    compareValue = (uint16_t)((float)delay*32.768);
+
+    // use timer A1
+    //Start timer in continuous mode sourced by AMCLK
+    Timer_A_initContinuousModeParam initContParam = {0};
+    initContParam.clockSource = TIMER_A_CLOCKSOURCE_ACLK;
+    initContParam.clockSourceDivider = TIMER_A_CLOCKSOURCE_DIVIDER_1;
+    initContParam.timerInterruptEnable_TAIE = TIMER_A_TAIE_INTERRUPT_DISABLE;
+    initContParam.timerClear = TIMER_A_DO_CLEAR;
+    initContParam.startTimer = false;
+    Timer_A_initContinuousMode(TIMER_A1_BASE, &initContParam);
+
+    //Initiaze compare mode
+    Timer_A_clearCaptureCompareInterrupt(TIMER_A1_BASE,
+        TIMER_A_CAPTURECOMPARE_REGISTER_0
+        );
+
+    Timer_A_initCompareModeParam initCompParam = {0};
+    initCompParam.compareRegister = TIMER_A_CAPTURECOMPARE_REGISTER_0;
+    initCompParam.compareInterruptEnable = TIMER_A_CAPTURECOMPARE_INTERRUPT_DISABLE;
+    initCompParam.compareOutputMode = TIMER_A_OUTPUTMODE_OUTBITVALUE;
+    initCompParam.compareValue = compareValue;
+    Timer_A_initCompareMode(TIMER_A1_BASE, &initCompParam);
+}
+
+
+#pragma vector=TIMER1_A0_VECTOR
+__interrupt
+void TIMER1_A0_ISR (void)
+{
+    // QSK timeout reached, so unmute audio and stop timer
+    Timer_A_stop(TIMER_A1_BASE);
+    Timer_A_clearCaptureCompareInterrupt(TIMER_A1_BASE,TIMER_A_CAPTURECOMPARE_REGISTER_0);
+    Timer_A_disableCaptureCompareInterrupt(TIMER_A1_BASE,TIMER_A_CAPTURECOMPARE_REGISTER_0);
+    unmuteAudio();
+}
+
+
+// initialize timer A2 for up mode
+void initKeyTimer(uint8_t wpm)
+{
+    uint16_t count;
+
+    count = 39322/wpm;
+    //Start timer in up mode sourced by ACLK
+    Timer_A_initUpModeParam initUpParam = {0};
+    initUpParam.clockSource = TIMER_A_CLOCKSOURCE_ACLK;
+    initUpParam.clockSourceDivider = TIMER_A_CLOCKSOURCE_DIVIDER_1;
+    initUpParam.timerInterruptEnable_TAIE = TIMER_A_TAIE_INTERRUPT_DISABLE;
+    initUpParam.captureCompareInterruptEnable_CCR0_CCIE = TIMER_A_CCIE_CCR0_INTERRUPT_DISABLE;
+    initUpParam.timerClear = TIMER_A_DO_CLEAR;
+    initUpParam.startTimer = false;
+    initUpParam.timerPeriod = count;
+    Timer_A_initUpMode(TIMER_A2_BASE, &initUpParam);
+
+    //Initiaze compare mode
+    Timer_A_clearCaptureCompareInterrupt(TIMER_A2_BASE,
+        TIMER_A_CAPTURECOMPARE_REGISTER_0
+        );
+    Timer_A_startCounter(TIMER_A2_BASE,TIMER_A_UP_MODE);  // start timer
+}
+
+/*******************************
+// initialize timer A3 for continuous mode - for CW message recording timing
+void initCWMsgRecordTimer(void)
+{
+    // use timer A3
+    //configure timer in continuous mode sourced by ACLK (32.768 kHz)
+    Timer_A_initContinuousModeParam initContParam = {0};
+    initContParam.clockSource = TIMER_A_CLOCKSOURCE_ACLK;
+    initContParam.clockSourceDivider = TIMER_A_CLOCKSOURCE_DIVIDER_1;
+    initContParam.timerInterruptEnable_TAIE = TIMER_A_TAIE_INTERRUPT_DISABLE;
+    initContParam.timerClear = TIMER_A_DO_CLEAR;
+    initContParam.startTimer = false;
+    Timer_A_initContinuousMode(TIMER_A3_BASE, &initContParam);
+}
+
+// initialize timer A3 for up mode - for CW message playback timing
+void initCWMsgPlayTimer(void)
+{
+    // use timer A3
+    //configure timer in up mode sourced by ACLK (32.768 kHz)
+    Timer_A_initUpModeParam initUpParam = {0};
+    initUpParam.clockSource = TIMER_A_CLOCKSOURCE_ACLK;
+    initUpParam.clockSourceDivider = TIMER_A_CLOCKSOURCE_DIVIDER_1;
+    initUpParam.timerInterruptEnable_TAIE = TIMER_A_TAIE_INTERRUPT_DISABLE;
+    initUpParam.captureCompareInterruptEnable_CCR0_CCIE = TIMER_A_CCIE_CCR0_INTERRUPT_DISABLE;
+    initUpParam.timerClear = TIMER_A_DO_CLEAR;
+    initUpParam.startTimer = false;
+    //initUpParam.timerPeriod = count;
+    Timer_A_initUpMode(TIMER_A3_BASE, &initUpParam);
+
+    //Initialize compare mode
+    Timer_A_clearCaptureCompareInterrupt(TIMER_A3_BASE,
+        TIMER_A_CAPTURECOMPARE_REGISTER_0
+        );
+
+}
+**************************/

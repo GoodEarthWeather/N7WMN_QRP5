@@ -41,6 +41,14 @@ __interrupt void Port_4(void)
 {
     switch(__even_in_range(P4IV,P4IV_P4IFG7))
     {
+    case  P4IV_P4IFG1:
+        // P4.1 = dah key
+        buttonPressed = BTN_PRESSED_DAH;
+        break;
+    case  P4IV_P4IFG2:
+        // P4.2 = dit key
+        buttonPressed = BTN_PRESSED_DIT;
+        break;
     case  P4IV_P4IFG5:
         // P4.5 = tuner encoder A
         buttonPressed = BTN_PRESSED_TUNER_ENCODER;

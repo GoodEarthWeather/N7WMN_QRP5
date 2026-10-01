@@ -172,7 +172,7 @@ const MenuItem_t menuTable[NUM_MENU_ITEMS] =
         .def.list = { .options = paddleOrientOptions,
                        .numOptions = sizeof(paddleOrientOptions)/sizeof(paddleOrientOptions[0]),
                        .defaultIndex = 1 },
-        .action = NULL
+        .action = handleHW_paddleOrientation
     },
     /* index 10 */
     {
@@ -182,7 +182,7 @@ const MenuItem_t menuTable[NUM_MENU_ITEMS] =
         .def.list = { .options = keyerOptions,
                        .numOptions = sizeof(keyerOptions)/sizeof(keyerOptions[0]),
                        .defaultIndex = 2 },
-        .action = NULL
+        .action = handleHW_keyer
     },
     /* index 11 */
     {
@@ -191,7 +191,7 @@ const MenuItem_t menuTable[NUM_MENU_ITEMS] =
         .type = MENU_TYPE_RANGE,
         .def.range = { .minValue = 5, .maxValue = 800, .step = 1,
                         .defaultValue = 150, .unitSuffix = " ms" },
-        .action = NULL
+        .action = handleHW_QSK
     },
     /* index 12 */
     {

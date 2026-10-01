@@ -9,6 +9,7 @@
 #include "init.h"
 #include "lcdLib.h"
 #include "si5351.h"
+#include "key.h"
 
 static void handle_led_encoder(void);
 static void handle_menu_encoder(void);
@@ -28,9 +29,9 @@ int main(void) {
     Menu_Init();
     updateLCD_status();
     init_spi_shift_register();
-    updateLEDShifter(0);  // initialize led array
     initializeRadioState();
     initializeHW();
+    updateLEDShifter(0);  // initialize led array
 
     while (1)
     {
@@ -72,6 +73,14 @@ int main(void) {
                     buttonPressed = BTN_PRESSED_NONE;
                 }
                 __enable_interrupt();
+                break;
+            case BTN_PRESSED_DIT :
+                buttonPressed = BTN_PRESSED_NONE;
+                (radioState.paddleOrientation == NORMAL) ? ditdah(DIT) : ditdah(DAH);
+                break;
+            case BTN_PRESSED_DAH :
+                buttonPressed = BTN_PRESSED_NONE;
+                (radioState.paddleOrientation == NORMAL) ? ditdah(DAH) : ditdah(DIT);
                 break;
             }
         }

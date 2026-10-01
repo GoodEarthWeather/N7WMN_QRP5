@@ -7,11 +7,10 @@
 #include "menu_data.h"
 #include "init.h"
 #include "si5351.h"
+#include "key.h"
 
 
 static void updateRelayShifter(uint8_t);
-static void muteAudio(void);
-static void unmuteAudio(void);
 
 
 #define BAND_FIELD 0x0D
@@ -87,6 +86,7 @@ void initializeRadioState(void)
         radioState.ledIndex = 0;
         radioState.selectedSideband = UPPER_SIDEBAND;
         radioState.sidetoneFreq = 600;
+        radioState.txKeyState = TX_KEY_UP;
 
         radioStateInitialized = 0x01;
     }
@@ -121,12 +121,14 @@ void initializeHW(void)
 
 void handleHW_wpm(const MenuItem_t *item, int16_t value)
 {
-
-    // Since the menu item for CW speed is a range value, it has
-    // already been incremented or decremented by the option_move
-    // function.
     radioState.wpm = (uint8_t)value;
-    //initKeyTimer((uint8_t)value);  // update timer with new speed
+    initKeyTimer((uint8_t)value);  // update timer with new speed
+}
+
+void handleHW_QSK(const MenuItem_t *item, int16_t value)
+{
+    radioState.qsk = value;
+    initQSKTimer(value);  // update timer with new speed
 }
 
 void handleHW_band(const MenuItem_t *item, int16_t value)
@@ -188,6 +190,13 @@ void handleHW_filter(const MenuItem_t *item, int16_t value)
 void handleHW_keyer(const MenuItem_t *item, int16_t value)
 {
     radioState.keyerIndex = (uint8_t)value;
+    // write code to implement SW change of keyer type
+}
+
+// Routine to handle paddle orientation (normal, reversed)
+void handleHW_paddleOrientation(const MenuItem_t *item, int16_t value)
+{
+    radioState.paddleOrientation = (uint8_t)value;
     // write code to implement SW change of keyer type
 }
 
@@ -277,12 +286,12 @@ static void updateRelayShifter(uint8_t relayCode)
     GPIO_setOutputLowOnPin(REG_CLK);
 }
 
-static void muteAudio(void)
+void muteAudio(void)
 {
     GPIO_setOutputHighOnPin(MUTE_OUT); // set high to mute
 }
 
-static void unmuteAudio(void)
+void unmuteAudio(void)
 {
     GPIO_setOutputLowOnPin(MUTE_OUT); // set low to unmute
 }

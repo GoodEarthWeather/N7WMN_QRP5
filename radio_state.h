@@ -21,10 +21,16 @@ void handleHW_rate(const MenuItem_t *, int16_t);
 void handleHW_filter(const MenuItem_t *, int16_t);
 void handleHW_spot(const MenuItem_t *, int16_t);
 void handleHW_mode(const MenuItem_t *, int16_t);
+void handleHW_keyer(const MenuItem_t *, int16_t);
+void handleHW_QSK(const MenuItem_t *, int16_t);
 void initializeHW(void);
 void initializeRadioState(void);
 void handleHW_audioMode(const MenuItem_t *, int16_t);
 void handleHW_mute(const MenuItem_t *, int16_t);
+void muteAudio(void);
+void unmuteAudio(void);
+void handleHW_paddleOrientation(const MenuItem_t *, int16_t);
+
 
 #define BAND_40M 0   //=> this is defined in radio_state.h because it is used by lcdLib.c
 #define BAND_30M 1
@@ -56,6 +62,9 @@ typedef struct
     uint8_t ledIndex;
     uint8_t audioMode;
     uint16_t sidetoneFreq;
+    uint8_t txKeyState;
+    uint8_t paddleOrientation;
+    uint16_t qsk;
 } RadioState_t;
 
 extern RadioState_t radioState;

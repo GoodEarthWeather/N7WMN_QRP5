@@ -8,11 +8,14 @@
 #ifndef INIT_H_
 #define INIT_H_
 
+#include <stdint.h> /* Essential for uint8_t and uint16_t definitions */
 
 void initClocks(void);
 void initGPIO(void);
 void init_spi_shift_register(void);
 void initSideToneTimer(void);
+void initQSKTimer(uint16_t);
+void initKeyTimer(uint8_t);
 
 #define MENU_ENCODER_A GPIO_PORT_P5, GPIO_PIN1
 #define MENU_ENCODER_B GPIO_PORT_P5, GPIO_PIN2
@@ -45,8 +48,15 @@ void initSideToneTimer(void);
 #define SPARE_P2P5  GPIO_PORT_P2, GPIO_PIN5
 #define SPARE_P3P7  GPIO_PORT_P3, GPIO_PIN7
 #define POWER_RF_ENABLE  GPIO_PORT_P4, GPIO_PIN0
-#define PADDLE_DIT  GPIO_PORT_P4, GPIO_PIN1
-#define PADDLE_DAH  GPIO_PORT_P4, GPIO_PIN2
+
+/*
+ * Note: the convention is that the left paddle (normal dits) should connect to
+ * the tip, and the right paddle (normal dahs) should connect to the ring.  My HW
+ * has this reversed, so below swap the mapping to correct this HW connection.
+ */
+#define DAH_KEY  GPIO_PORT_P4, GPIO_PIN1
+#define DIT_KEY  GPIO_PORT_P4, GPIO_PIN2
+
 #define STRAIGHT_KEY  GPIO_PORT_P2, GPIO_PIN7
 #define TR_SWITCH  GPIO_PORT_P3, GPIO_PIN5
 #define CWTX_OUT  GPIO_PORT_P3, GPIO_PIN2
