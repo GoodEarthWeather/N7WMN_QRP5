@@ -54,10 +54,10 @@ void initKeyTimer(uint8_t);
  * the tip, and the right paddle (normal dahs) should connect to the ring.  My HW
  * has this reversed, so below swap the mapping to correct this HW connection.
  */
-#define DAH_KEY  GPIO_PORT_P4, GPIO_PIN1
-#define DIT_KEY  GPIO_PORT_P4, GPIO_PIN2
-
+#define PADDLE_LEFT  GPIO_PORT_P4, GPIO_PIN2
+#define PADDLE_RIGHT  GPIO_PORT_P4, GPIO_PIN1
 #define STRAIGHT_KEY  GPIO_PORT_P2, GPIO_PIN7
+
 #define TR_SWITCH  GPIO_PORT_P3, GPIO_PIN5
 #define CWTX_OUT  GPIO_PORT_P3, GPIO_PIN2
 #define MUTE_OUT  GPIO_PORT_P3, GPIO_PIN6

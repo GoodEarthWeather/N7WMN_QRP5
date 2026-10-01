@@ -330,12 +330,12 @@ void ditdah(uint8_t key)
 
         // completion of key sent; now determine what to do next
         if (radioState.paddleOrientation == NORMAL){
-            ditKeyState = GPIO_getInputPinValue(DIT_KEY);
-            dahKeyState = GPIO_getInputPinValue(DAH_KEY);
+            ditKeyState = GPIO_getInputPinValue(PADDLE_LEFT);
+            dahKeyState = GPIO_getInputPinValue(PADDLE_RIGHT);
         }
         else {
-            ditKeyState = GPIO_getInputPinValue(DAH_KEY);
-            dahKeyState = GPIO_getInputPinValue(DIT_KEY);
+            ditKeyState = GPIO_getInputPinValue(PADDLE_RIGHT);
+            dahKeyState = GPIO_getInputPinValue(PADDLE_LEFT);
         }
 
         if (ditKeyState == GPIO_INPUT_PIN_LOW && dahKeyState == GPIO_INPUT_PIN_LOW){
@@ -343,7 +343,10 @@ void ditdah(uint8_t key)
             if (radioState.keyerIndex != IAMBIC_MODE_ULTIMATIC){
                 (key == DAH) ? (key = DIT) : (key = DAH);  // alternate dit/dah
             } else if (buttonPressed != BTN_PRESSED_NONE){
-                (buttonPressed == BTN_PRESSED_DIT) ? (key = DIT) : (key = DAH);
+                if (radioState.paddleOrientation == NORMAL)
+                    (buttonPressed == BTN_PRESSED_PADDLE_LEFT) ? (key = DIT) : (key = DAH);
+                else
+                    (buttonPressed == BTN_PRESSED_PADDLE_LEFT) ? (key = DAH) : (key = DIT);
             }
         } else if (ditKeyState == GPIO_INPUT_PIN_LOW && dahKeyState == GPIO_INPUT_PIN_HIGH) {
             squeeze = DISABLED;
@@ -352,18 +355,23 @@ void ditdah(uint8_t key)
             squeeze = DISABLED;
             key = DAH;
         } else  {  // both keys are high
-            if (buttonPressed == BTN_PRESSED_DIT) {
+            if (radioState.paddleOrientation == NORMAL && buttonPressed == BTN_PRESSED_PADDLE_LEFT)
                 key = DIT;
-            } else if (buttonPressed == BTN_PRESSED_DAH) {
+            else if (radioState.paddleOrientation != NORMAL && buttonPressed == BTN_PRESSED_PADDLE_RIGHT)
+                key = DIT;
+            else if (radioState.paddleOrientation == NORMAL && buttonPressed == BTN_PRESSED_PADDLE_RIGHT)
                 key = DAH;
-            } else if (squeeze == ENABLED) {
+            else if (radioState.paddleOrientation != NORMAL && buttonPressed == BTN_PRESSED_PADDLE_LEFT)
+                key = DAH;
+            else if (squeeze == ENABLED) {
                 squeeze = DISABLED;
-                if (radioState.keyerIndex == IAMBIC_MODE_B) {
+                if (radioState.keyerIndex == IAMBIC_MODE_B)
                     (key == DAH) ? (key = DIT) : (key = DAH);
+                else
+                    break;
                 }
-           } else {
+            else
                 break;
-            }
         }
         buttonPressed = BTN_PRESSED_NONE;
     } while (1);

@@ -74,11 +74,11 @@ int main(void) {
                 }
                 __enable_interrupt();
                 break;
-            case BTN_PRESSED_DIT :
+            case BTN_PRESSED_PADDLE_LEFT :
                 buttonPressed = BTN_PRESSED_NONE;
                 (radioState.paddleOrientation == NORMAL) ? ditdah(DIT) : ditdah(DAH);
                 break;
-            case BTN_PRESSED_DAH :
+            case BTN_PRESSED_PADDLE_RIGHT :
                 buttonPressed = BTN_PRESSED_NONE;
                 (radioState.paddleOrientation == NORMAL) ? ditdah(DAH) : ditdah(DIT);
                 break;

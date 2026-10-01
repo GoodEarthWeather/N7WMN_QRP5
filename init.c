@@ -150,8 +150,8 @@ void initGPIO(void)
    GPIO_setAsOutputPin(POWER_RF_ENABLE);
    GPIO_setOutputHighOnPin(POWER_RF_ENABLE); // set high to tri-state buffers
 
-   GPIO_setAsInputPin(DIT_KEY);
-   GPIO_setAsInputPin(DAH_KEY);
+   GPIO_setAsInputPin(PADDLE_LEFT);
+   GPIO_setAsInputPin(PADDLE_RIGHT);
    GPIO_setAsInputPin(STRAIGHT_KEY);
 
    GPIO_setAsOutputPin(TR_SWITCH);
@@ -162,12 +162,12 @@ void initGPIO(void)
    GPIO_setOutputLowOnPin(MUTE_OUT);
 
    // configure cw key interrupts
-   GPIO_selectInterruptEdge(DIT_KEY, GPIO_HIGH_TO_LOW_TRANSITION);  // interrupt on falling edge of dit key
-   GPIO_selectInterruptEdge(DAH_KEY, GPIO_HIGH_TO_LOW_TRANSITION);  // interrupt on falling edge of dit key
-   GPIO_enableInterrupt(DIT_KEY);
-   GPIO_clearInterrupt(DIT_KEY);
-   GPIO_enableInterrupt(DAH_KEY);
-   GPIO_clearInterrupt(DAH_KEY);
+   GPIO_selectInterruptEdge(PADDLE_LEFT, GPIO_HIGH_TO_LOW_TRANSITION);  // interrupt on falling edge of dit key
+   GPIO_selectInterruptEdge(PADDLE_RIGHT, GPIO_HIGH_TO_LOW_TRANSITION);  // interrupt on falling edge of dit key
+   GPIO_enableInterrupt(PADDLE_LEFT);
+   GPIO_clearInterrupt(PADDLE_LEFT);
+   GPIO_enableInterrupt(PADDLE_RIGHT);
+   GPIO_clearInterrupt(PADDLE_RIGHT);
 
 
    // Initialize side tone output
