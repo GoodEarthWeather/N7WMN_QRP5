@@ -16,6 +16,8 @@ void init_spi_shift_register(void);
 void initSideToneTimer(void);
 void initQSKTimer(uint16_t);
 void initKeyTimer(uint8_t);
+void initCWMsgRecordTimer(void);
+void initCWMsgPlayTimer(void);
 
 #define MENU_ENCODER_A GPIO_PORT_P5, GPIO_PIN1
 #define MENU_ENCODER_B GPIO_PORT_P5, GPIO_PIN2

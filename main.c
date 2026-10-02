@@ -13,6 +13,7 @@
 
 static void handle_led_encoder(void);
 static void handle_menu_encoder(void);
+static void handle_menu_encoder_switch(void);
 static void updateLEDShifter( uint8_t);
 static void handle_tuner_encoder(void);
 
@@ -45,6 +46,7 @@ int main(void) {
                 buttonPressed = BTN_PRESSED_NONE;
                 break;
             case BTN_PRESSED_MENU_ENCODER_SWITCH :
+                handle_menu_encoder_switch();
                 buttonPressed = BTN_PRESSED_NONE;
                 break;
             case BTN_PRESSED_TUNER_ENCODER_SWITCH :
@@ -137,6 +139,29 @@ static void handle_menu_encoder(void)
     // now update LCD status field to show current menu option
     updateLCD_status();
 }
+/*
+ * This routine will handle response to the menu option encoder switch being activated.
+ */
+static void handle_menu_encoder_switch(void)
+{
+     uint8_t value;
+
+    if (menuSelectedIndex == MENU_PLAY_MEM)
+    {
+        // the play mem menu is selected and the encoder switch was pressed
+        // so play the selected memory
+        value = (uint8_t)menuCurrentValue[menuSelectedIndex];
+        playCwMsg(value);
+    }
+    else if (menuSelectedIndex == MENU_RECORD_MEM)
+    {
+        // the play mem menu is selected and the encoder switch was pressed
+        // so play the selected memory
+        value = (uint8_t)menuCurrentValue[menuSelectedIndex];
+        recordCwMsg(value);
+    }
+}
+
 
 static void handle_tuner_encoder(void)
 {

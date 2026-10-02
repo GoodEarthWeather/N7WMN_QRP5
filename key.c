@@ -25,6 +25,23 @@ static void keyUp(void);
 #define IAMBIC_MODE_B 1
 #define IAMBIC_MODE_ULTIMATIC 2
 
+#define CW_MSG_COUNT 3  // number of messages
+#define CW_MEM_SIZE 512  // length of vector
+#define CWMSG_DISABLED 0
+#define CWMSG_PLAY 1
+#define CWMSG_RECORD 2
+
+
+typedef struct {
+    uint16_t mem[CW_MEM_SIZE];
+} cwMem_t;
+
+#pragma PERSISTENT(cwMsg)
+static cwMem_t cwMsg[CW_MSG_COUNT] = {0};  // vector to hold cw message
+
+static uint16_t *dataPtr;
+static uint8_t cwMsgState;
+
 
 // This routine will start transmission
 static void keyDown(void)
@@ -94,166 +111,78 @@ void setTRSwitch(uint8_t state)
 }
 ******************/
 
-/*************************
+
 // This routine will play the cw message in the cwMsg[] vector
 void playCwMsg(uint8_t mem)
 {
-    extern uint16_t *cwMemPtr;
-    extern cwMem_t cwMsg;
-    //extern uint16_t cwMsg[];
-    extern uint8_t txMode;
-    extern uint8_t volatile buttonPressed;
-    extern uint8_t selectedMem;  // selected cw message memory
     uint16_t count;
     uint8_t done;
     uint8_t on = 0;
 
-    // copy message from nvs memory to cwMsg.mem
-    cwMemRead(mem);
+    cwMsgState = CWMSG_PLAY;
 
-    // wait until a dit or dah or memory button is pressed
-    // a dit or dah will initiate sending the memory message
-    // a memory button push will go to the next memory, or will exit back to normal display
-    while ((buttonPressed != BTN_PRESSED_DIT) && (buttonPressed != BTN_PRESSED_DAH) && (buttonPressed != BTN_PRESSED_MEMORY)) {;}
-    if (buttonPressed != BTN_PRESSED_MEMORY)
+    dataPtr = cwMsg[mem].mem;
+    buttonPressed = BTN_PRESSED_NONE;
+    dataPtr++;  // skip the 0 in the first location
+
+    // configure message timer (A3)
+    initCWMsgPlayTimer();
+    on = 0;
+    while ( (count = *dataPtr++) && (buttonPressed == BTN_PRESSED_NONE) )
     {
-        buttonPressed = BTN_PRESSED_NONE;
-        cwMemPtr = cwMsg.mem;  // set pointer to beginning of memory vector
-        cwMemPtr++;  // skip the 0 in the first location
-
-        // configure message timer (A3)
-        initCWMsgPlayTimer();
-        on = 0;
-        while ( (count = *cwMemPtr++) && (buttonPressed == BTN_PRESSED_NONE) )
+        on = !on;  // switch to on or off
+        Timer_A_clear(TIMER_A3_BASE);  // clear timer
+        Timer_A_setCompareValue (TIMER_A3_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_0, count);
+        if (on)
         {
-            on = !on;  // switch to on or off
-            Timer_A_clear(TIMER_A3_BASE);  // clear timer
-            Timer_A_setCompareValue (TIMER_A3_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_0, count);
-            if (on)
-            {
-                Timer_A_startCounter(TIMER_A0_BASE,TIMER_A_UP_MODE);  // start side tone
-                if (txMode == ENABLED)
-                    keyDown();
-            }
-            Timer_A_startCounter(TIMER_A3_BASE,TIMER_A_UP_MODE);
-            do {
-                done = Timer_A_getCaptureCompareInterruptStatus(TIMER_A3_BASE,TIMER_A_CAPTURECOMPARE_REGISTER_0,TIMER_A_CAPTURECOMPARE_INTERRUPT_FLAG);
-            } while (done != TIMER_A_CAPTURECOMPARE_INTERRUPT_FLAG);
-            Timer_A_clearCaptureCompareInterrupt(TIMER_A3_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_0);
-            if (on)
-            {
-                Timer_A_stop(TIMER_A0_BASE);  // stop side tone
-                if (txMode == ENABLED)
-                    keyUp();
-            }
+            Timer_A_startCounter(TIMER_A0_BASE,TIMER_A_UP_MODE);  // start side tone
+            if (radioState.txMode)
+                keyDown();
         }
-        buttonPressed = BTN_PRESSED_NONE;  // if playback was interrupted by keypress, ignore the key that was pressed
-        updateDisplay(MENU_DISPLAY);
-    } else {
-        if (selectedMem == MEM3)
+        Timer_A_startCounter(TIMER_A3_BASE,TIMER_A_UP_MODE);
+        do {
+            done = Timer_A_getCaptureCompareInterruptStatus(TIMER_A3_BASE,TIMER_A_CAPTURECOMPARE_REGISTER_0,TIMER_A_CAPTURECOMPARE_INTERRUPT_FLAG);
+        } while (done != TIMER_A_CAPTURECOMPARE_INTERRUPT_FLAG);
+        Timer_A_clearCaptureCompareInterrupt(TIMER_A3_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_0);
+        if (on)
         {
-            selectedMem = MEM1;
-            updateDisplay(MENU_DISPLAY);
-            buttonPressed = BTN_PRESSED_NONE;
-        } else {
-        selectedMem++;
-        updateDisplay(PLAY_MEM_DISPLAY);
+            Timer_A_stop(TIMER_A0_BASE);  // stop side tone
+            if (radioState.txMode)
+                keyUp();
         }
     }
+    buttonPressed = BTN_PRESSED_NONE;  // if playback was interrupted by keypress, ignore the key that was pressed
+    cwMsgState = CWMSG_DISABLED;
 }
 
 void recordCwMsg(uint8_t mem)
 {
-    extern uint8_t volatile buttonPressed;
-    extern uint8_t paddleOrientation;  // paddles configured for dah-dit or dit-dah
-    extern uint8_t cwMsgState;  // either disabled, recording or playing
-    extern cwMem_t cwMsg;
-    extern uint16_t *cwMemPtr;
 
-    cwMemPtr = cwMsg.mem;  // reset pointer to start of vector
-    while ( (buttonPressed != BTN_PRESSED_ENCODER) )
+    cwMsgState = CWMSG_RECORD;
+    dataPtr = cwMsg[mem].mem;
+    buttonPressed = BTN_PRESSED_NONE;
+    initCWMsgRecordTimer();
+    while ( (buttonPressed != BTN_PRESSED_MENU_ENCODER_SWITCH) )
     {
         switch (buttonPressed)
         {
-        case BTN_PRESSED_DIT :
+        case BTN_PRESSED_PADDLE_LEFT :
             buttonPressed = BTN_PRESSED_NONE;
-            (paddleOrientation == PADDLE_DAH_DIT) ? ditdah(DIT) : ditdah(DAH);
+            (radioState.paddleOrientation == NORMAL) ? ditdah(DIT) : ditdah(DAH);
             break;
-        case BTN_PRESSED_DAH :
+        case BTN_PRESSED_PADDLE_RIGHT :
             buttonPressed = BTN_PRESSED_NONE;
-            (paddleOrientation == PADDLE_DAH_DIT) ? ditdah(DAH) : ditdah(DIT);
+            (radioState.paddleOrientation == NORMAL) ? ditdah(DAH) : ditdah(DIT);
             break;
         default :
             break;
         }
     }
-    *cwMemPtr = 0; // put a zero at the end of the message
-    cwMemWrite(mem);  // save message into nvs
+    *dataPtr = 0; // put a zero at the end of the message
+    cwMsgState = CWMSG_DISABLED;
+
     buttonPressed = BTN_PRESSED_NONE;
 }
-**********************/
-/**********************
-After completion of dit/dah:
-if iambic-A:
-    if dah was sent:
-        if dah is still pressed:
-            if dit is pressed:
-                send dit
-                back to top
-            else
-                send another dah
-                back to top
-        else if dit is pressed
-            send dit
-            back to top
-        else
-            exit function
-    if dit was sent:
-        if dit is still pressed:
-            if dah is pressed:
-                send dah
-                back to top
-            else
-                send another dit
-                back to top
-        else if dah is pressed
-            send dah
-            back to top
-        else
-            exit function
-else if iambic-B
-    if dah was sent:
-        if dah is still pressed:
-            if BTN_PRESSED_DIT is true OR dit key is low : (dit key was pressed at some point during dah)
-                set BTN_PRESSED_NONE
-                send dit
-                back to top
-            else
-                send another dah
-                back to top
-        else if BTN_PRESSED_DIT is true OR dit key is low: (dit key was pressed at some point during dah)
-            set BTN_PRESSED_NONE
-            send dit
-            back to top
-        else
-            exit function
-    if dit was sent:
-        if dit is still pressed:
-            if BTN_PRESSED_DAH is true OR dah key is low: (dah key was pressed at some point during dit)
-                set BTN_PRESSED_NONE
-                send dah
-                back to top
-            else
-                send another dit
-                back to top
-        else if BTN_PRESSED_DAH is true OR dah key is low: (dah key was pressed at some point during dit)
-            set BTN_PRESSED_NONE
-            send dah
-            back to top
-        else
-            exit function
-
- */
 
 // This routine is to handle the dit and dah key
 // 'key' is either DIT or DAH (i.e. 1 or 3)
@@ -264,29 +193,26 @@ void ditdah(uint8_t key)
     uint8_t ditKeyState;
     uint8_t dahKeyState;
     uint8_t squeeze = DISABLED;
-    //extern uint8_t cwMsgState;  // indicates if recording cw message
-    //extern uint16_t *cwMemPtr;
-    extern uint8_t volatile buttonPressed;
 
     do {
 
         // start the sidetone and, if needed, cw message timer
         Timer_A_startCounter(TIMER_A0_BASE,TIMER_A_UP_MODE);  // start side tone
-        /*******
-        if (cwMsgState == RECORD)
+
+        if (cwMsgState == CWMSG_RECORD)
         {
             Timer_A_stop(TIMER_A3_BASE);  // stop cw msg timer
             if (Timer_A_getInterruptStatus(TIMER_A3_BASE) == TIMER_A_INTERRUPT_PENDING)
             {
                 // timer overflow - limit delay to max (2 seconds)
-                *cwMemPtr++ = 0xFFFF;
+                *dataPtr++ = 0xFFFF;
                 Timer_A_clearTimerInterrupt(TIMER_A3_BASE);
             } else {
-                *cwMemPtr++ = Timer_A_getCounterValue(TIMER_A3_BASE);
+                *dataPtr++ = Timer_A_getCounterValue(TIMER_A3_BASE);
             }
             Timer_A_clear(TIMER_A3_BASE);  // clear timer
             Timer_A_startCounter(TIMER_A3_BASE,TIMER_A_CONTINUOUS_MODE);  // start measuring keyDown time
-        ************/
+        }
 
         // if transmitter enabled, turn on
         if (radioState.txMode)
@@ -311,15 +237,15 @@ void ditdah(uint8_t key)
         if (radioState.txMode)
             keyUp();
         Timer_A_stop(TIMER_A0_BASE);  // stop side tone
-        /****************
-        if (cwMsgState == RECORD)
+
+        if (cwMsgState == CWMSG_RECORD)
         {
             Timer_A_stop(TIMER_A3_BASE);  // stop cw msg timer
-            *cwMemPtr++ = Timer_A_getCounterValue(TIMER_A3_BASE);
+            *dataPtr++ = Timer_A_getCounterValue(TIMER_A3_BASE);
             Timer_A_clear(TIMER_A3_BASE);  // clear timer
             Timer_A_startCounter(TIMER_A3_BASE,TIMER_A_CONTINUOUS_MODE);  // start measuring keyUp time
         }
-        *****************/
+
         // Wait one dit time
         Timer_A_clear(TIMER_A2_BASE);  // clear dit/dah timer
         Timer_A_clearCaptureCompareInterrupt(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_0);
@@ -377,116 +303,4 @@ void ditdah(uint8_t key)
     } while (1);
     buttonPressed = BTN_PRESSED_NONE;
 }
-/*
-void ditdah(uint8_t key)
-{
-    uint8_t done;
-    uint8_t count;
-    uint8_t ditKeyState;
-    uint8_t dahKeyState;
-    uint8_t squeeze = DISABLED;
-    extern uint8_t txMode;
-    extern uint8_t paddleOrientation;  // paddles configured for dah-dit or dit-dah
-    extern uint8_t cwMsgState;  // indicates if recording cw message
-    extern uint16_t *cwMemPtr;
-    extern uint8_t volatile buttonPressed;
 
-    do {
-
-        // start the sidetone and, if needed, cw message timer
-        Timer_A_startCounter(TIMER_A0_BASE,TIMER_A_UP_MODE);  // start side tone
-        if (cwMsgState == RECORD)
-        {
-            Timer_A_stop(TIMER_A3_BASE);  // stop cw msg timer
-            if (Timer_A_getInterruptStatus(TIMER_A3_BASE) == TIMER_A_INTERRUPT_PENDING)
-            {
-                // timer overflow - limit delay to max (2 seconds)
-                *cwMemPtr++ = 0xFFFF;
-                Timer_A_clearTimerInterrupt(TIMER_A3_BASE);
-            } else {
-                *cwMemPtr++ = Timer_A_getCounterValue(TIMER_A3_BASE);
-            }
-            Timer_A_clear(TIMER_A3_BASE);  // clear timer
-            Timer_A_startCounter(TIMER_A3_BASE,TIMER_A_CONTINUOUS_MODE);  // start measuring keyDown time
-        }
-
-        // if transmitter enabled, turn on
-        if (txMode == ENABLED)
-            keyDown();
-
-        // Prepare dit dah timer
-        Timer_A_clearCaptureCompareInterrupt(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_0);
-        Timer_A_clear(TIMER_A2_BASE);  // clear timer
-
-        // Start dit/dah delay timer
-        count = 0;
-        while (count < key)
-        {
-            done = Timer_A_getCaptureCompareInterruptStatus(TIMER_A2_BASE,TIMER_A_CAPTURECOMPARE_REGISTER_0,TIMER_A_CAPTURECOMPARE_INTERRUPT_FLAG);
-            if (done == TIMER_A_CAPTURECOMPARE_INTERRUPT_FLAG)
-            {
-                count++;
-                Timer_A_clearCaptureCompareInterrupt(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_0);
-            }
-        }
-        //  stop transmission (if enabled) and stop side tone and cw message timer if needed
-        if (txMode == ENABLED)
-            keyUp();
-        Timer_A_stop(TIMER_A0_BASE);  // stop side tone
-        if (cwMsgState == RECORD)
-        {
-            Timer_A_stop(TIMER_A3_BASE);  // stop cw msg timer
-            *cwMemPtr++ = Timer_A_getCounterValue(TIMER_A3_BASE);
-            Timer_A_clear(TIMER_A3_BASE);  // clear timer
-            Timer_A_startCounter(TIMER_A3_BASE,TIMER_A_CONTINUOUS_MODE);  // start measuring keyUp time
-        }
-        // Wait one dit time
-        Timer_A_clear(TIMER_A2_BASE);  // clear dit/dah timer
-        Timer_A_clearCaptureCompareInterrupt(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_0);
-        do {
-            done = Timer_A_getCaptureCompareInterruptStatus(TIMER_A2_BASE,TIMER_A_CAPTURECOMPARE_REGISTER_0,TIMER_A_CAPTURECOMPARE_INTERRUPT_FLAG);
-        } while (done != TIMER_A_CAPTURECOMPARE_INTERRUPT_FLAG);
-        Timer_A_clearCaptureCompareInterrupt(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_0);
-
-        // completion of key sent; now determine what to do next
-        if (paddleOrientation == PADDLE_DAH_DIT){
-            ditKeyState = GPIO_getInputPinValue(DIT_KEY);
-            dahKeyState = GPIO_getInputPinValue(DAH_KEY);
-        }
-        else {
-            ditKeyState = GPIO_getInputPinValue(DAH_KEY);
-            dahKeyState = GPIO_getInputPinValue(DIT_KEY);
-        }
-
-        if (ditKeyState == GPIO_INPUT_PIN_LOW && dahKeyState == GPIO_INPUT_PIN_LOW){
-            squeeze = ENABLED;
-            if (iambicMode != IAMBIC_MODE_ULTIMATIC){
-                (key == DAH) ? (key = DIT) : (key = DAH);  // alternate dit/dah
-            } else if (buttonPressed != BTN_PRESSED_NONE){
-                (buttonPressed == BTN_PRESSED_DIT) ? (key = DIT) : (key = DAH);
-            }
-        } else if (ditKeyState == GPIO_INPUT_PIN_LOW && dahKeyState == GPIO_INPUT_PIN_HIGH) {
-            squeeze = DISABLED;
-            key = DIT;
-        } else if (ditKeyState == GPIO_INPUT_PIN_HIGH && dahKeyState == GPIO_INPUT_PIN_LOW) {
-            squeeze = DISABLED;
-            key = DAH;
-        } else  {  // both keys are high
-            if (squeeze == ENABLED) {
-                squeeze = DISABLED;
-                if (iambicMode == IAMBIC_MODE_B) {
-                    (key == DAH) ? (key = DIT) : (key = DAH);
-                }
-            } else if (buttonPressed == BTN_PRESSED_DIT) {
-                key = DIT;
-            } else if (buttonPressed == BTN_PRESSED_DAH) {
-                key = DAH;
-            } else {
-                break;
-            }
-        }
-        buttonPressed = BTN_PRESSED_NONE;
-    } while (1);
-    buttonPressed = BTN_PRESSED_NONE;
-}
-*/

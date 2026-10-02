@@ -301,7 +301,6 @@ void initKeyTimer(uint8_t wpm)
     Timer_A_startCounter(TIMER_A2_BASE,TIMER_A_UP_MODE);  // start timer
 }
 
-/*******************************
 // initialize timer A3 for continuous mode - for CW message recording timing
 void initCWMsgRecordTimer(void)
 {
@@ -337,4 +336,4 @@ void initCWMsgPlayTimer(void)
         );
 
 }
-**************************/
+

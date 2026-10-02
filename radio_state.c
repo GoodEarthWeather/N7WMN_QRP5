@@ -137,7 +137,8 @@ void handleHW_band(const MenuItem_t *item, int16_t value)
     const char *suffix = NULL;
     const char * bandName[] = {"40M", "30M", "20M", "17M", "15M"};
 
-    muteAudio();
+    if (radioState.audioState == MUTE_OFF)
+        muteAudio();
     radioState.bandIndex = (uint8_t)value;
     radioState.bandRelayCode = relayCode[(uint8_t)value];
     radioState.maxBandFreq = maxBand[(uint8_t)value];
@@ -154,7 +155,8 @@ void handleHW_band(const MenuItem_t *item, int16_t value)
     // now update the LCD freq. field
     updateLCD_freq();
     delay_ms(3);
-    unmuteAudio();
+    if (radioState.audioState == MUTE_OFF)
+        unmuteAudio();
 }
 
 // Routine to handle mode
@@ -164,14 +166,16 @@ void handleHW_mode(const MenuItem_t *item, int16_t value)
     const uint8_t sideband[] = {UPPER_SIDEBAND, LOWER_SIDEBAND, UPPER_SIDEBAND, LOWER_SIDEBAND};
     const char *suffix = NULL;
 
-    muteAudio();
+    if (radioState.audioState == MUTE_OFF)
+        muteAudio();
     radioState.modeIndex = (uint8_t)value;
     radioState.selectedSideband = sideband[value];
     LCD_WriteField(&fieldMode,modeName[(uint8_t)value],suffix);
     // write code to implement HW change of mode
     setSI5351Freq(radioState.frequency[radioState.bandIndex]);
     delay_ms(10);
-    unmuteAudio();
+    if (radioState.audioState == MUTE_OFF)
+        unmuteAudio();
 }
 
 // Routine to handle audio filter
@@ -219,15 +223,18 @@ void handleHW_mute(const MenuItem_t *item, int16_t value)
 {
     if ((uint8_t)value == MUTE_OFF) {
         GPIO_setOutputLowOnPin(MUTE_OUT); // set low to unmute
+        radioState.audioState = MUTE_OFF;
     } else {
         GPIO_setOutputHighOnPin(MUTE_OUT); // set high to mute
+        radioState.audioState = MUTE_ON;
     }
 }
 
 // Routine to select audio mode: binaural or monaural
 void handleHW_audioMode(const MenuItem_t *item, int16_t value)
 {
-    muteAudio();
+    if (radioState.audioState == MUTE_OFF)
+        muteAudio();
     radioState.audioMode = (uint8_t)value;
     if ((uint8_t)value == MONAURAL) {
         GPIO_setOutputLowOnPin(SELECT_BINAURAL); // set low to select monaural
@@ -235,7 +242,8 @@ void handleHW_audioMode(const MenuItem_t *item, int16_t value)
         GPIO_setOutputHighOnPin(SELECT_BINAURAL); // set high to select binaural
     }
     delay_ms(10);
-    unmuteAudio();
+    if (radioState.audioState == MUTE_OFF)
+        unmuteAudio();
 }
 
 /*

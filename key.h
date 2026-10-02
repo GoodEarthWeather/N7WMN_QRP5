@@ -17,7 +17,7 @@
 #define NORMAL 0
 
 void ditdah(uint8_t);
-
-
+void playCwMsg(uint8_t);
+void recordCwMsg(uint8_t);
 
 #endif /* KEY_H_ */

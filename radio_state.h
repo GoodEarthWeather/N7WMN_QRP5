@@ -23,6 +23,8 @@ void handleHW_spot(const MenuItem_t *, int16_t);
 void handleHW_mode(const MenuItem_t *, int16_t);
 void handleHW_keyer(const MenuItem_t *, int16_t);
 void handleHW_QSK(const MenuItem_t *, int16_t);
+void handleHW_playMem(const MenuItem_t *, int16_t);
+void handleHW_recordMem(const MenuItem_t *, int16_t);
 void initializeHW(void);
 void initializeRadioState(void);
 void handleHW_audioMode(const MenuItem_t *, int16_t);
@@ -65,6 +67,7 @@ typedef struct
     uint8_t txKeyState;
     uint8_t paddleOrientation;
     uint16_t qsk;
+    uint8_t cwMsgState;
 } RadioState_t;
 
 extern RadioState_t radioState;

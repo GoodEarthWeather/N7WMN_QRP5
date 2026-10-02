@@ -18,6 +18,27 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+/*
+ * These defines match menus to their respective index
+ */
+#define MENU_BAND 0U
+#define MENU_RATE 1U
+#define MENU_FILTER 2U
+#define MENU_SPOT 3U
+#define MENU_MUTE 4U
+#define MENU_MODE 5U
+#define MENU_PLAY_MEM 6U
+#define MENU_RECORD_MEM 7U
+#define MENU_WPM 8U
+#define MENU_PADDLE_ORIENT 9U
+#define MENU_KEYER_MODE 10U
+#define MENU_QSK 11U
+#define MENU_AUDIO_MODE 12U
+#define MENU_VOLTAGE 13U
+#define MENU_XIT 14U
+#define MENU_RIT 15U
+
+
 /* ------------------------------------------------------------------ */
 /* Configuration                                                       */
 /* ------------------------------------------------------------------ */
