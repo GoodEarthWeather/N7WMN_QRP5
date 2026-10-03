@@ -11,6 +11,6 @@
 int setSI5351Freq(uint32_t);
 void initialize_si5351(void);
 void si5351_disable_spread_spectrum(void);
-
+int si5351_switch_rxtx(uint32_t);
 
 #endif /* SI5351_H_ */

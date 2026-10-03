@@ -169,6 +169,10 @@ void initGPIO(void)
    GPIO_enableInterrupt(PADDLE_RIGHT);
    GPIO_clearInterrupt(PADDLE_RIGHT);
 
+   // initalize tx mode button
+   GPIO_selectInterruptEdge(BTN_TXMODE, GPIO_HIGH_TO_LOW_TRANSITION);  // interrupt on falling edge of tx mode button
+   GPIO_enableInterrupt(BTN_TXMODE);
+   GPIO_clearInterrupt(BTN_TXMODE);
 
    // Initialize side tone output
    GPIO_setAsPeripheralModuleFunctionOutputPin(SIDETONE_OUTPUT,GPIO_SECONDARY_MODULE_FUNCTION);

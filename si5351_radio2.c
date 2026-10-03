@@ -22,6 +22,19 @@
 #define REG_CLK0_PHOFF          165
 #define REG_CLK1_PHOFF          166
 #define XTAL_LOAD_CAP           183
+#define REG_MS2_PARAMETERS      58
+#define REG_CLK2_PHOFF          167
+
+#define STATUS_LOL_A            0x20    // device status reg bit 5: PLLA loss of lock
+
+// Output Enable register (3): a 1 bit DISABLES that clock.
+#define OUT_ALL_OFF             0xFF
+#define OUT_RX_ONLY             0xFC    // CLK0 + CLK1 on (quadrature LO)
+#define OUT_TX_ONLY             0xFB    // CLK2 on (transmitter)
+
+// Time to wait after changing the PLL before trusting/enabling the outputs.
+// Measure the real settling time on a scope and adjust.
+#define PLL_SETTLE_US           1000
 
 #define CW 0
 #define CWR 1
@@ -45,8 +58,8 @@
 #define I2C_RECEIVE 0
 #define I2C_SEND 1
 
-// Longest burst is 16 data bytes (MS0 + MS1 registers), plus 1 register byte
-#define I2C_MAX_BURST           16
+// Longest burst is 24 data bytes (MS0 + MS1 + MS2 registers), plus 1 register byte
+#define I2C_MAX_BURST           24
 
 // 100 kbps works today. The Si5351 supports 400 kbps if your pull-ups and
 // wiring allow it: EUSCI_B_I2C_SET_DATA_RATE_400KBPS
@@ -123,19 +136,22 @@ int setSI5351Freq(uint32_t freq)
     // PLLA feedback multisynth (always updated): 8 bytes, one transaction
     i2cSendBurst(REG_PLLA_PARAMETERS, regs, 8);
 
-
     if (d != lastD || (int)radioState.selectedSideband != lastSideband)
     {
-        // MS0 (regs 42-49) and MS1 (regs 50-57) are contiguous and use the
-        // same divider, so send both as one 16-byte transaction.
-        uint8_t ms[16];
+        // MS0 (42-49), MS1 (50-57) and MS2 (58-65) are contiguous and all use
+        // the same divider, so send them as one 24-byte transaction. CLK2 (the
+        // transmitter clock) therefore always tracks the receive LO frequency;
+        // which clocks actually come out is decided by the Output Enable
+        // register (see si5351_switch_rxtx).
+        uint8_t ms[24];
         for (i = 0; i < 8; i++)
-            ms[i] = ms[8 + i] = regs[8 + i];
-        i2cSendBurst(REG_MS0_PARAMETERS, ms, 16);
+            ms[i] = ms[8 + i] = ms[16 + i] = regs[8 + i];
+        i2cSendBurst(REG_MS0_PARAMETERS, ms, 24);
 
-        // CLK0_PHOFF (165) and CLK1_PHOFF (166) are also contiguous.
-        // Swap the two bytes to change the phase relationship (usb/lsb).
-        uint8_t ph[2];
+        // CLK0_PHOFF (165), CLK1_PHOFF (166), CLK2_PHOFF (167) are contiguous.
+        // Swap the first two bytes to change the phase relationship (usb/lsb).
+        // CLK2 does not need a phase offset.
+        uint8_t ph[3];
         if (radioState.selectedSideband == LOWER_SIDEBAND) {
             ph[0] = (uint8_t)d;     // CLK0 phase offset
             ph[1] = 0;              // CLK1 phase offset
@@ -143,7 +159,8 @@ int setSI5351Freq(uint32_t freq)
             ph[1] = (uint8_t)d;     // CLK1 phase offset
             ph[0] = 0;              // CLK0 phase offset
         }
-        i2cSendBurst(REG_CLK0_PHOFF, ph, 2);
+        ph[2] = 0;                  // CLK2 phase offset
+        i2cSendBurst(REG_CLK0_PHOFF, ph, 3);
 
         // Phase offsets take effect on a PLL reset
         delay_us(500);
@@ -185,12 +202,59 @@ void initialize_si5351(void)
     // source = own multisynth, 8 mA drive
     i2cSendRegister(REG_CLK0_CTRL, 0x4F);
     i2cSendRegister(REG_CLK1_CTRL, 0x4F);
-    i2cSendRegister(REG_CLK2_CTRL, 0xCF);       // CLK2 stays powered down
+    // CLK2 (transmitter): same config as CLK0/CLK1, powered up and on PLLA.
+    // It stays silent because its Output Enable bit is set; switching between
+    // receive and transmit is done with the Output Enable register only.
+    i2cSendRegister(REG_CLK2_CTRL, 0x4F);
 
     i2cSendRegister(XTAL_LOAD_CAP, XTAL_CL_VALUE);
 
-    i2cSendRegister(REG_OUTPUT_ENABLE, 0xFC);   // enable CLK0 and CLK1
+    i2cSendRegister(REG_OUTPUT_ENABLE, OUT_RX_ONLY);   // start in receive
     lastD = 0;                                  // force full load on next set
+}
+
+// Waits (bounded) for PLLA to report lock. Returns 0 if locked, -1 on timeout.
+static int waitPllLock(void)
+{
+    uint8_t tries;
+    for (tries = 0; tries < 50; tries++)
+    {
+        i2cSetRegPointer(DEVICE_STATUS);
+        RXData[0] = 0;
+        i2cReceiveData();
+        if (!(RXData[0] & STATUS_LOL_A))
+            return 0;
+    }
+    return -1;
+}
+
+/*
+ * Switches the Si5351 between receive (CLK0 + CLK1 quadrature) and transmit
+ * (CLK2 only). Set radioState.txMode first, then call this with the dial
+ * frequency. Returns 0 on success; on any error all outputs are left OFF:
+ *   -1  frequency out of range for the quadrature phase register
+ *   -2  PLL did not report lock
+ *
+ * Sequence: mute everything, retune, let the PLL settle, then enable only
+ * the clocks for the new mode. This keeps a mistuned or unlocked clock from
+ * ever reaching the transmitter or the detector.
+ *
+ * Add the prototype to si5351.h:  int si5351_switch_rxtx(uint32_t freq);
+ */
+int si5351_switch_rxtx(uint32_t freq)
+{
+    i2cSendRegister(REG_OUTPUT_ENABLE, OUT_ALL_OFF);
+
+    if (setSI5351Freq(freq) != 0)
+        return -1;
+
+    delay_us(PLL_SETTLE_US);
+    if (waitPllLock() != 0)
+        return -2;
+
+    i2cSendRegister(REG_OUTPUT_ENABLE,
+                    radioState.txMode ? OUT_TX_ONLY : OUT_RX_ONLY);
+    return 0;
 }
 
 /*
@@ -443,4 +507,9 @@ static void i2cReceiveData(void)
 
     EUSCI_B_I2C_masterReceiveStart(EUSCI_B0_BASE);
     __bis_SR_register(LPM0_bits + GIE);         // sleep until the byte arrives
-}
+}/*
+ * si5351_radio2.c
+ *
+ *  Created on: Oct 2, 2026
+ *      Author: david
+ */

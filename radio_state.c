@@ -151,7 +151,8 @@ void handleHW_band(const MenuItem_t *item, int16_t value)
     updateRelayShifter(0); // zero out relay code; magnetic latch holding relay
 
     // now, set the si5351 to the correct output frequency
-    setSI5351Freq(radioState.frequency[(uint8_t)value]);
+    //setSI5351Freq(radioState.frequency[(uint8_t)value]);
+    si5351_switch_rxtx(radioState.frequency[(uint8_t)value]);
     // now update the LCD freq. field
     updateLCD_freq();
     delay_ms(3);
@@ -172,7 +173,8 @@ void handleHW_mode(const MenuItem_t *item, int16_t value)
     radioState.selectedSideband = sideband[value];
     LCD_WriteField(&fieldMode,modeName[(uint8_t)value],suffix);
     // write code to implement HW change of mode
-    setSI5351Freq(radioState.frequency[radioState.bandIndex]);
+    //setSI5351Freq(radioState.frequency[radioState.bandIndex]);
+    si5351_switch_rxtx(radioState.frequency[radioState.bandIndex]);
     delay_ms(10);
     if (radioState.audioState == MUTE_OFF)
         unmuteAudio();
@@ -211,9 +213,17 @@ void handleHW_spot(const MenuItem_t *item, int16_t value)
         // handle turning spot off
         Timer_A_stop(TIMER_A0_BASE);  // stop side tone
         Timer_A_setOutputForOutputModeOutBitValue(TIMER_A0_BASE,TIMER_A_CAPTURECOMPARE_REGISTER_1,TIMER_A_OUTPUTMODE_OUTBITVALUE_LOW);
+        if (radioState.txMode){
+            ;
+            // turn off power amp and rf
+        }
     } else {
         // turning spot on
         Timer_A_startCounter(TIMER_A0_BASE,TIMER_A_UP_MODE);  // start side tone
+        if (radioState.txMode){
+            ;
+            // turn on power amp and rf
+        }
     }
 }
 

@@ -88,6 +88,11 @@ __interrupt void Port_5(void)
           // P5.1 = Menu Encoder A
           buttonPressed = BTN_PRESSED_MENU_ENCODER;
           break;
+      case  P5IV_P5IFG7:
+          // P5.7 = TX Mode Button
+          buttonPressed = BTN_PRESSED_TX_MODE;
+          break;
+
       default: break;
     }
 }

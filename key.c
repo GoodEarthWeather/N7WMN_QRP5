@@ -13,6 +13,7 @@
 #include "init.h"
 #include "isr.h"
 
+static void setTRSwitch(void);
 static void keyDown(void);
 static void keyUp(void);
 
@@ -32,6 +33,7 @@ static void keyUp(void);
 #define CWMSG_RECORD 2
 
 
+
 typedef struct {
     uint16_t mem[CW_MEM_SIZE];
 } cwMem_t;
@@ -40,24 +42,34 @@ typedef struct {
 static cwMem_t cwMsg[CW_MSG_COUNT] = {0};  // vector to hold cw message
 
 static uint16_t *dataPtr;
+static uint16_t *endPtr;
 static uint8_t cwMsgState;
 
 
 // This routine will start transmission
 static void keyDown(void)
 {
-
+    uint8_t i = radioState.bandIndex;
     muteAudio();
+
     // stop qsk timer
     Timer_A_stop(TIMER_A1_BASE);
     Timer_A_clearCaptureCompareInterrupt(TIMER_A1_BASE,TIMER_A_CAPTURECOMPARE_REGISTER_0);
     Timer_A_disableCaptureCompareInterrupt(TIMER_A1_BASE,TIMER_A_CAPTURECOMPARE_REGISTER_0);
-    //setTRSwitch(TRANSMIT);
 
     radioState.txKeyState = TX_KEY_DOWN;
-    //si5351_RXTX_enable();
-    GPIO_setOutputHighOnPin(CWTX_OUT);
+    setTRSwitch();
+    if (si5351_switch_rxtx(radioState.frequency[i]) != 0) {   // mutes, retunes, then enables CLK2
+        // error: outputs are off, so back out of transmit
+        while(1); // trap here on error
+    }
 
+    //turn on power amp, including rf
+    GPIO_setOutputHighOnPin(CWTX_OUT);  // set key signal high
+    GPIO_setOutputHighOnPin(POWER_AMP_ENABLE);  // enable switcher to output stage
+    GPIO_setOutputLowOnPin(POWER_RF_ENABLE);  // enable rf enable
+
+    unmuteAudio();
 }
 
 // This routine will stop transmission
@@ -69,48 +81,27 @@ static void keyUp(void)
     Timer_A_enableCaptureCompareInterrupt(TIMER_A1_BASE,TIMER_A_CAPTURECOMPARE_REGISTER_0);
     Timer_A_startCounter( TIMER_A1_BASE,TIMER_A_CONTINUOUS_MODE);
     radioState.txKeyState = TX_KEY_UP;
-    GPIO_setOutputLowOnPin(CWTX_OUT);
+
     delay_ms(10);
-    //setTRSwitch(RECEIVE);
-    //si5351_RXTX_enable();
+    setTRSwitch();
+    //turn off power amp including rf
+    GPIO_setOutputLowOnPin(CWTX_OUT);
+    delay_ms(6.0);
+    GPIO_setOutputLowOnPin(POWER_AMP_ENABLE);  // disable switcher to output stage
+    delay_ms(6.0);
+    GPIO_setOutputHighOnPin(POWER_RF_ENABLE);  // disable rf enable
+
 }
 
-/*****************
-// This routine will turn on the transmitter for tuning
-void setTuneMode(void)
-{
-    extern uint8_t tuneMode;
-    extern uint8_t txKeyState;
-    extern uint8_t txMode;
 
-    if (txMode == ENABLED)  // tune mode only if in txmode
-    {
-        if (tuneMode == ENABLED)
-        {
-            keyDown();
-            Timer_A_startCounter(TIMER_A0_BASE,TIMER_A_UP_MODE);  // start side tone
-        }
-        else
-        {
-            keyUp();
-            Timer_A_stop(TIMER_A0_BASE);  // stop side tone
-            Timer_A_setOutputForOutputModeOutBitValue(TIMER_A0_BASE,TIMER_A_CAPTURECOMPARE_REGISTER_1,TIMER_A_OUTPUTMODE_OUTBITVALUE_LOW);
-        }
-    }
-}
-*****************/
-
-/************************
 // This routine will set the state of the tr switch
-void setTRSwitch(uint8_t state)
+static void setTRSwitch(void)
 {
-    if (state == RECEIVE)
-        GPIO_setOutputHighOnPin(TR_SWITCH); // receive mode
-    else if (state == TRANSMIT)
+    if (radioState.txKeyState == TX_KEY_DOWN)
         GPIO_setOutputLowOnPin(TR_SWITCH); // transmit mode
+    else if (radioState.txKeyState == TX_KEY_UP)
+        GPIO_setOutputLowOnPin(TR_SWITCH); // receive mode
 }
-******************/
-
 
 // This routine will play the cw message in the cwMsg[] vector
 void playCwMsg(uint8_t mem)
@@ -160,6 +151,7 @@ void recordCwMsg(uint8_t mem)
 
     cwMsgState = CWMSG_RECORD;
     dataPtr = cwMsg[mem].mem;
+    endPtr = &cwMsg[mem].mem[CW_MEM_SIZE];
     buttonPressed = BTN_PRESSED_NONE;
     initCWMsgRecordTimer();
     while ( (buttonPressed != BTN_PRESSED_MENU_ENCODER_SWITCH) )
@@ -178,7 +170,10 @@ void recordCwMsg(uint8_t mem)
             break;
         }
     }
-    *dataPtr = 0; // put a zero at the end of the message
+    if (dataPtr < endPtr)
+        *dataPtr = 0; // put a zero at the end of the message
+    else
+        *(--dataPtr) = 0;
     cwMsgState = CWMSG_DISABLED;
 
     buttonPressed = BTN_PRESSED_NONE;
@@ -205,10 +200,12 @@ void ditdah(uint8_t key)
             if (Timer_A_getInterruptStatus(TIMER_A3_BASE) == TIMER_A_INTERRUPT_PENDING)
             {
                 // timer overflow - limit delay to max (2 seconds)
-                *dataPtr++ = 0xFFFF;
+                if (dataPtr < endPtr)
+                    *dataPtr++ = 0xFFFF;
                 Timer_A_clearTimerInterrupt(TIMER_A3_BASE);
             } else {
-                *dataPtr++ = Timer_A_getCounterValue(TIMER_A3_BASE);
+                if (dataPtr < endPtr)
+                    *dataPtr++ = Timer_A_getCounterValue(TIMER_A3_BASE);
             }
             Timer_A_clear(TIMER_A3_BASE);  // clear timer
             Timer_A_startCounter(TIMER_A3_BASE,TIMER_A_CONTINUOUS_MODE);  // start measuring keyDown time
@@ -241,7 +238,8 @@ void ditdah(uint8_t key)
         if (cwMsgState == CWMSG_RECORD)
         {
             Timer_A_stop(TIMER_A3_BASE);  // stop cw msg timer
-            *dataPtr++ = Timer_A_getCounterValue(TIMER_A3_BASE);
+            if (dataPtr < endPtr)
+                *dataPtr++ = Timer_A_getCounterValue(TIMER_A3_BASE);
             Timer_A_clear(TIMER_A3_BASE);  // clear timer
             Timer_A_startCounter(TIMER_A3_BASE,TIMER_A_CONTINUOUS_MODE);  // start measuring keyUp time
         }

@@ -16,6 +16,7 @@ static void handle_menu_encoder(void);
 static void handle_menu_encoder_switch(void);
 static void updateLEDShifter( uint8_t);
 static void handle_tuner_encoder(void);
+static void handle_txMode(void);
 
 
 int main(void) {
@@ -83,6 +84,12 @@ int main(void) {
             case BTN_PRESSED_PADDLE_RIGHT :
                 buttonPressed = BTN_PRESSED_NONE;
                 (radioState.paddleOrientation == NORMAL) ? ditdah(DAH) : ditdah(DIT);
+                break;
+            case BTN_PRESSED_TX_MODE :
+                buttonPressed = BTN_PRESSED_NONE;
+                handle_txMode();
+                break;
+            default :
                 break;
             }
         }
@@ -179,7 +186,8 @@ static void handle_tuner_encoder(void)
     encoderCWCount = encoderCCWCount = 0;
     // now update lcd frequency field; always show rx frequency only
     updateLCD_freq();
-    setSI5351Freq(radioState.frequency[i]);
+    //setSI5351Freq(radioState.frequency[i]);
+    si5351_switch_rxtx(radioState.frequency[i]);
 }
 
 
@@ -222,9 +230,15 @@ static void updateLEDShifter( uint8_t index)
     GPIO_setOutputLowOnPin(REG_CLK);
 }
 
-
-
-
-
-
+static void handle_txMode(void)
+{
+    radioState.txMode = !radioState.txMode;
+    if (radioState.txMode){
+        GPIO_setOutputHighOnPin(POWER_DRV_ENABLE);  // turn on driver switcher
+        GPIO_setOutputHighOnPin(TX_LED);  // turn on tx led
+    } else {
+        GPIO_setOutputLowOnPin(POWER_DRV_ENABLE); // turn off driver switcher
+        GPIO_setOutputLowOnPin(TX_LED);  // turn off tx led
+    }
+}
 

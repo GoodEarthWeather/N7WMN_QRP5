@@ -20,6 +20,7 @@ extern uint8_t volatile buttonPressed;
 #define BTN_PRESSED_TUNER_ENCODER_SWITCH 0x6
 #define BTN_PRESSED_PADDLE_LEFT 0x7
 #define BTN_PRESSED_PADDLE_RIGHT 0x8
+#define BTN_PRESSED_TX_MODE 0x9
 
 #define ENCODER_CW   1
 #define ENCODER_CCW  -1
